@@ -11,3 +11,9 @@ type SaurfangGroups struct {
 	Name        string     `gorm:"type:text;comment:名称" json:"name"`
 	Description string     `gorm:"type:text;comment:描述" json:"description"`
 }
+
+// GroupMapping
+type GroupMapping struct {
+	Label string
+	Value string
+}
