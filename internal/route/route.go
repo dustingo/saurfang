@@ -4,7 +4,7 @@ package route
 import (
 	"saurfang/internal/config"
 	"saurfang/internal/handler/cmdbhandler"
-	"saurfang/internal/service/cmdbservice.go"
+	"saurfang/internal/service/cmdbservice"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -32,5 +32,19 @@ func CMDBRouter(app *fiber.App) *fiber.Router {
 	cmdbRouter.Put("/host/regroup/:id/:greoup_id", cmdbHostHandler.Handler_ReGroup)
 	// 归属组路由api
 	cmdbGroupService := cmdbservice.NewGroupsService(config.DB)
+	cmdbGroupHandler := cmdbhandler.NewGroupHandler(cmdbGroupService)
+	// 创建新归属组
+	cmdbRouter.Post("/group/create", cmdbGroupHandler.Handler_CreateNewGroup)
+	//删除组
+	cmdbRouter.Delete("/group/delete/:id", cmdbGroupHandler.Handler_DeleteGroup)
+	// 批量删除组
+	cmdbRouter.Delete("/group/batchDelete", cmdbGroupHandler.Handler_BatchDeleteGroups)
+	// 更新组信息
+	cmdbRouter.Put("/group/update/:id", cmdbGroupHandler.Handler_UpdateGroup)
+	cmdbRouter.Get("/group/list", cmdbGroupHandler.Handler_ListGroups)
+	// Amis前端组ID转换为组名称
+	cmdbRouter.Get("/group/idtoname", cmdbGroupHandler.Handler_GroupIdToName)
+	// 新增主机选择归属组
+	cmdbRouter.Get("/group/select", cmdbGroupHandler.Handler_SelectGroupForHost)
 	return &cmdbRouter
 }
