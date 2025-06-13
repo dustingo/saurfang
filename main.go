@@ -39,6 +39,7 @@ func main() {
 			if serve {
 				app := fiber.New()
 				route.CMDBRouter(app)
+				route.GameRouter(app)
 				if err := app.Listen(fmt.Sprintf(":%s", os.Getenv("APP_PORT"))); err != nil {
 					log.Fatalln("Failed to start app: ", err.Error())
 				}
