@@ -1,11 +1,13 @@
 package base
 
 import (
+	clientv3 "go.etcd.io/etcd/client/v3"
 	"gorm.io/gorm"
 )
 
 type BaseGormRepository[T any] struct {
-	DB *gorm.DB
+	DB   *gorm.DB
+	Etcd *clientv3.Client
 }
 
 // Create创建MySQL数据

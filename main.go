@@ -2,14 +2,14 @@ package main
 
 import (
 	"fmt"
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/joho/godotenv"
+	"github.com/spf13/cobra"
 	"log"
 	"os"
 	"saurfang/internal/config"
 	"saurfang/internal/route"
-
-	"github.com/gofiber/fiber/v2"
-	"github.com/joho/godotenv"
-	"github.com/spf13/cobra"
 )
 
 var (
@@ -36,8 +36,12 @@ func main() {
 				log.Fatalln("无法加载.env文件:", err)
 			}
 			config.InitMySQL()
+			config.InitEtcd()
 			if serve {
-				app := fiber.New()
+				app := fiber.New(fiber.Config{
+					Prefork: true,
+				})
+				app.Use(logger.New())
 				route.CMDBRouter(app)
 				route.GameRouter(app)
 				if err := app.Listen(fmt.Sprintf(":%s", os.Getenv("APP_PORT"))); err != nil {
