@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 type HostHandler struct {
@@ -18,7 +18,7 @@ func NewHostHandler(svc *cmdbservice.HostsService) *HostHandler {
 }
 
 // Handler_ListHosts 列出全部的服务器
-func (h *HostHandler) Handler_ListHosts(c *fiber.Ctx) error {
+func (h *HostHandler) Handler_ListHosts(c fiber.Ctx) error {
 	hosts, err := h.BaseGormRepository.List()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -34,7 +34,7 @@ func (h *HostHandler) Handler_ListHosts(c *fiber.Ctx) error {
 }
 
 // Handler_ListHostsPerPage 分页显示主机记录
-func (h *HostHandler) Handler_ListHostsPerPage(c *fiber.Ctx) error {
+func (h *HostHandler) Handler_ListHostsPerPage(c fiber.Ctx) error {
 	page, _ := strconv.Atoi(c.Params("page", "1"))
 	pageSize, _ := strconv.Atoi(c.Params("perPafe", "10"))
 	hosts, total, err := h.ListPerPage(page, pageSize)
@@ -55,9 +55,9 @@ func (h *HostHandler) Handler_ListHostsPerPage(c *fiber.Ctx) error {
 }
 
 // Handler_CreateHost 创建主机记录
-func (h *HostHandler) Handler_CreateHost(c *fiber.Ctx) error {
+func (h *HostHandler) Handler_CreateHost(c fiber.Ctx) error {
 	var host gamehost.SaurfangHosts
-	if err := c.BodyParser(&host); err != nil {
+	if err := c.Bind().Body(&host); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  1,
 			"message": "请求错误",
@@ -78,10 +78,10 @@ func (h *HostHandler) Handler_CreateHost(c *fiber.Ctx) error {
 }
 
 // Handler_UpdateHost 根据主机ID更新主机记录
-func (h *HostHandler) Handler_UpdateHost(c *fiber.Ctx) error {
+func (h *HostHandler) Handler_UpdateHost(c fiber.Ctx) error {
 	var host gamehost.SaurfangHosts
 	id, _ := strconv.Atoi(c.Params("id"))
-	if err := c.BodyParser(&host); err != nil {
+	if err := c.Bind().Body(&host); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  1,
 			"message": "请求错误",
@@ -103,7 +103,7 @@ func (h *HostHandler) Handler_UpdateHost(c *fiber.Ctx) error {
 }
 
 // Handler_ReGroup 为主机重新分配归属组
-func (h *HostHandler) Handler_ReGroup(c *fiber.Ctx) error {
+func (h *HostHandler) Handler_ReGroup(c fiber.Ctx) error {
 	hsotId, _ := strconv.Atoi(c.Params("id"))
 	groupId, _ := strconv.Atoi(c.Params("group_id"))
 	if err := h.ChangeGroup(uint(hsotId), uint(groupId)); err != nil {
@@ -120,7 +120,7 @@ func (h *HostHandler) Handler_ReGroup(c *fiber.Ctx) error {
 }
 
 // Handler_DeleteHost 删除主机记录
-func (h *HostHandler) Handler_DeleteHost(c *fiber.Ctx) error {
+func (h *HostHandler) Handler_DeleteHost(c fiber.Ctx) error {
 	id, _ := strconv.Atoi(c.Params("id"))
 	if err := h.Delete(uint(id)); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -136,7 +136,7 @@ func (h *HostHandler) Handler_DeleteHost(c *fiber.Ctx) error {
 }
 
 // Handler_BatchDeleteHosts 批量删除主机记录
-func (h *HostHandler) Handler_BatchDeleteHosts(c *fiber.Ctx) error {
+func (h *HostHandler) Handler_BatchDeleteHosts(c fiber.Ctx) error {
 	originIds := strings.Split(c.Params("ids"), ",")
 	ids := make([]uint, 0, len(originIds))
 	for _, oid := range originIds {
@@ -157,9 +157,9 @@ func (h *HostHandler) Handler_BatchDeleteHosts(c *fiber.Ctx) error {
 }
 
 // Handler_QuickSave 快速保存主机记录
-func (h *HostHandler) Handler_QuickSave(c *fiber.Ctx) error {
+func (h *HostHandler) Handler_QuickSave(c fiber.Ctx) error {
 	var quickData gamehost.QuickSavePayload
-	if err := c.BodyParser(&quickData); err != nil {
+	if err := c.Bind().Body(&quickData); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  1,
 			"message": "bad request",

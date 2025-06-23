@@ -2,6 +2,7 @@ package tools
 
 import (
 	"fmt"
+	"saurfang/internal/models/task.go"
 	"strings"
 )
 
@@ -19,4 +20,17 @@ func FormatLine(prefix string, fillChar string) string {
 	fillStr := strings.Repeat(fillChar, fillLength)
 	// 将前缀字符串和补充字符的字符串拼接起来
 	return fmt.Sprintf("%s%s\n", prefix, fillStr)
+}
+func TaskReport(results <-chan task.TaskStatus) string {
+	var total, success, failed int
+	for result := range results {
+		total++
+		switch result.Status {
+		case "success":
+			success++
+		case "failure":
+			failed++
+		}
+	}
+	return fmt.Sprintf("Total: %d\t  Success:%d\t  Failed:%d\n", total, success, failed)
 }

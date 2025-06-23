@@ -6,7 +6,7 @@ import (
 	"saurfang/internal/handler/gamehandler"
 	"saurfang/internal/service/gameservice"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 func GameRouter(app *fiber.App) *fiber.Router {

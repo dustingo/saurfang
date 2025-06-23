@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/logger"
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 	"log"
@@ -39,11 +39,13 @@ func main() {
 			config.InitEtcd()
 			if serve {
 				app := fiber.New(fiber.Config{
-					Prefork: true,
+					TrustProxy: true,
 				})
 				app.Use(logger.New())
 				route.CMDBRouter(app)
 				route.GameRouter(app)
+				route.DataSourceRouter(app)
+				route.TaskRouter(app)
 				if err := app.Listen(fmt.Sprintf(":%s", os.Getenv("APP_PORT"))); err != nil {
 					log.Fatalln("Failed to start app: ", err.Error())
 				}

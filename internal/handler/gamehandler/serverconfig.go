@@ -1,7 +1,7 @@
 package gamehandler
 
 import (
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"saurfang/internal/models/serverconfig"
 	"saurfang/internal/service/gameservice"
 )
@@ -16,9 +16,9 @@ func NewServerConfigHandler(svc *gameservice.ServerConfigService) *ServerConfigH
 }
 
 // Handler_CreateServerConfig 创建逻辑服配置
-func (s *ServerConfigHandler) Handler_CreateServerConfig(c *fiber.Ctx) error {
+func (s *ServerConfigHandler) Handler_CreateServerConfig(c fiber.Ctx) error {
 	var gcdto serverconfig.GameConfigDto
-	if err := c.BodyParser(&gcdto); err != nil {
+	if err := c.Bind().Body(&gcdto); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  1,
 			"message": err.Error(),
@@ -37,7 +37,7 @@ func (s *ServerConfigHandler) Handler_CreateServerConfig(c *fiber.Ctx) error {
 }
 
 // Handler_DeleteServerConfig 删除逻辑服配置
-func (s *ServerConfigHandler) Handler_DeleteServerConfig(c *fiber.Ctx) error {
+func (s *ServerConfigHandler) Handler_DeleteServerConfig(c fiber.Ctx) error {
 	key := c.Params("key")
 	if err := s.ServerConfigService.Service_DeleteGameConfig(key); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -52,9 +52,9 @@ func (s *ServerConfigHandler) Handler_DeleteServerConfig(c *fiber.Ctx) error {
 }
 
 // Handler_UpdateServerConfig 更新逻辑服配置
-func (s *ServerConfigHandler) Handler_UpdateServerConfig(c *fiber.Ctx) error {
+func (s *ServerConfigHandler) Handler_UpdateServerConfig(c fiber.Ctx) error {
 	var payload serverconfig.GameConfigDto
-	if err := c.BodyParser(&payload); err != nil {
+	if err := c.Bind().Body(&payload); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  1,
 			"message": err.Error(),
@@ -73,7 +73,7 @@ func (s *ServerConfigHandler) Handler_UpdateServerConfig(c *fiber.Ctx) error {
 }
 
 // Handler_ListServerConfig 展示配置
-func (s *ServerConfigHandler) Handler_ListServerConfig(c *fiber.Ctx) error {
+func (s *ServerConfigHandler) Handler_ListServerConfig(c fiber.Ctx) error {
 	data, err := s.ServerConfigService.Service_ListGameConfig()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -89,7 +89,7 @@ func (s *ServerConfigHandler) Handler_ListServerConfig(c *fiber.Ctx) error {
 }
 
 // Handler_ListServerConfigBykey 根据key查询配置
-func (s *ServerConfigHandler) Handler_ListServerConfigBykey(c *fiber.Ctx) error {
+func (s *ServerConfigHandler) Handler_ListServerConfigBykey(c fiber.Ctx) error {
 	key := c.Params("key")
 	data, err := s.ServerConfigService.Service_ListGameConfigBykey(key)
 	if err != nil {

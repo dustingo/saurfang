@@ -15,7 +15,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 type LogicServerHandler struct {
@@ -27,9 +27,9 @@ func NewLogicServerHandler(svc *gameservice.LogicServerService) *LogicServerHand
 }
 
 // Handler_CreateLogicServer 创建游戏逻辑服
-func (l *LogicServerHandler) Handler_CreateLogicServer(c *fiber.Ctx) error {
+func (l *LogicServerHandler) Handler_CreateLogicServer(c fiber.Ctx) error {
 	var server gameserver.SaurfangGames
-	if err := c.BodyParser(&server); err != nil {
+	if err := c.Bind().Body(&server); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  1,
 			"message": err.Error(),
@@ -48,7 +48,7 @@ func (l *LogicServerHandler) Handler_CreateLogicServer(c *fiber.Ctx) error {
 }
 
 // Handler_DeleteLogicServer 删除逻辑服 “/delete"
-func (l *LogicServerHandler) Handler_DeleteLogicServer(c *fiber.Ctx) error {
+func (l *LogicServerHandler) Handler_DeleteLogicServer(c fiber.Ctx) error {
 	id, _ := strconv.Atoi(c.Query("games_id"))
 	if err := l.Delete(uint(id)); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -63,7 +63,7 @@ func (l *LogicServerHandler) Handler_DeleteLogicServer(c *fiber.Ctx) error {
 }
 
 // Handler_DeleteHostFromLogicServer 从逻辑服中删除指定的主机 "/deletehosts"
-func (l *LogicServerHandler) Handler_DeleteHostFromLogicServer(c *fiber.Ctx) error {
+func (l *LogicServerHandler) Handler_DeleteHostFromLogicServer(c fiber.Ctx) error {
 	gameid, _ := strconv.Atoi(c.Query("games_id"))
 	hostid := strings.Split(c.Query("host_ids"), ",")
 	ids := make([]uint, 0, len(hostid))
@@ -96,10 +96,10 @@ func (l *LogicServerHandler) Handler_DeleteHostFromLogicServer(c *fiber.Ctx) err
 }
 
 // Handler_UpdateLogicServer 更新逻辑服信息 "/update/:id"
-func (l *LogicServerHandler) Handler_UpdateLogicServer(c *fiber.Ctx) error {
+func (l *LogicServerHandler) Handler_UpdateLogicServer(c fiber.Ctx) error {
 	id, _ := strconv.Atoi(c.Params("id"))
 	var servers gameserver.SaurfangGames
-	if err := c.BodyParser(&servers); err != nil {
+	if err := c.Bind().Body(&servers); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  1,
 			"message": err.Error(),
@@ -119,7 +119,7 @@ func (l *LogicServerHandler) Handler_UpdateLogicServer(c *fiber.Ctx) error {
 }
 
 // Handler_ListLogicServer 展示逻辑服信息 "/list"
-func (l *LogicServerHandler) Handler_ShowLogicServer(c *fiber.Ctx) error {
+func (l *LogicServerHandler) Handler_ShowLogicServer(c fiber.Ctx) error {
 	servers, err := l.List()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -135,7 +135,7 @@ func (l *LogicServerHandler) Handler_ShowLogicServer(c *fiber.Ctx) error {
 }
 
 // Handler_ShowServerDetail 展示逻辑服详细信息 "/detail"
-func (l *LogicServerHandler) Handler_ShowServerDetail(c *fiber.Ctx) error {
+func (l *LogicServerHandler) Handler_ShowServerDetail(c fiber.Ctx) error {
 	var gameID string
 	gameID = c.Query("gameid", "0")
 	id, _ := strconv.Atoi(gameID)
@@ -170,7 +170,7 @@ func (l *LogicServerHandler) Handler_ShowServerDetail(c *fiber.Ctx) error {
 }
 
 // Handler_ShowGameserverByTree 选择对应逻辑服treeselect "/detail/select"
-func (l *LogicServerHandler) Handler_ShowGameserverByTree(c *fiber.Ctx) error {
+func (l *LogicServerHandler) Handler_ShowGameserverByTree(c fiber.Ctx) error {
 	gameInfo := []struct {
 		ChannelName string `json:"channel_name"`
 		GameName    string `json:"game_name"`
@@ -214,7 +214,7 @@ JOIN
 }
 
 // Handler_ShowServerDetailForPicker amis picker专用接口 "/detail/picker"
-func (l *LogicServerHandler) Handler_ShowServerDetailForPicker(c *fiber.Ctx) error {
+func (l *LogicServerHandler) Handler_ShowServerDetailForPicker(c fiber.Ctx) error {
 	gameInfo := []struct {
 		ChannelName string `json:"channel_name"`
 		GameName    string `json:"game_name"`
@@ -250,7 +250,7 @@ JOIN
 }
 
 // Handler_AddHostsToLogicServer 为逻辑服分配主机 "/assignhost"
-func (l *LogicServerHandler) Handler_AddHostsToLogicServer(c *fiber.Ctx) error {
+func (l *LogicServerHandler) Handler_AddHostsToLogicServer(c fiber.Ctx) error {
 	gameID, _ := strconv.Atoi(c.Query("games_id"))
 	hostIds := c.Query("host_ids")
 	hostID := strings.Split(hostIds, ",")
@@ -271,7 +271,7 @@ func (l *LogicServerHandler) Handler_AddHostsToLogicServer(c *fiber.Ctx) error {
 }
 
 // Handler_TreeSelectForSyncServerConfig 发布服务器端配置文件时选择服务器 "/detail/for-config/select"
-func (l *LogicServerHandler) Handler_TreeSelectForSyncServerConfig(c *fiber.Ctx) error {
+func (l *LogicServerHandler) Handler_TreeSelectForSyncServerConfig(c fiber.Ctx) error {
 	gameInfo := []struct {
 		ChannelName string `json:"channel_name"`
 		GameName    string `json:"game_name"`
@@ -315,7 +315,7 @@ JOIN
 }
 
 // Handler_ShowGameProcesses 展示所有进程
-func (l *LogicServerHandler) Handler_ShowGameProcesses(c *fiber.Ctx) error {
+func (l *LogicServerHandler) Handler_ShowGameProcesses(c fiber.Ctx) error {
 	var gc serverconfig.Configs
 	var gcs []serverconfig.Configs
 	var gameConfigs serverconfig.GameConfigs
@@ -356,7 +356,7 @@ func (l *LogicServerHandler) Handler_ShowGameProcesses(c *fiber.Ctx) error {
 }
 
 // Handler_ExecGameops 执行有媳妇操作 start|stop
-func (l *LogicServerHandler) Handler_ExecGameops(c *fiber.Ctx) error {
+func (l *LogicServerHandler) Handler_ExecGameops(c fiber.Ctx) error {
 	serverID := c.Query("server_id")
 	ops := c.Query("ops")
 	svc := c.Query("svc")
@@ -407,7 +407,7 @@ func (l *LogicServerHandler) Handler_ExecGameops(c *fiber.Ctx) error {
 	return c.SendStatus(http.StatusOK)
 }
 
-func (l *LogicServerHandler) Handler_BatchExecgameops(c *fiber.Ctx) error {
+func (l *LogicServerHandler) Handler_BatchExecgameops(c fiber.Ctx) error {
 	serverIDs := c.Query("serverids")
 	ops := c.Query("ops")
 	for _, serverID := range strings.Split(serverIDs, ",") {

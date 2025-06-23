@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/spf13/cast"
 	"os"
 	"os/exec"
@@ -15,7 +15,11 @@ import (
 	"sync"
 )
 
-func ConcurrentExec(data map[string]serverconfig.Configs, ctx *fiber.Ctx, ops, serverid string) {
+func ConcurrentExec(data map[string]serverconfig.Configs, c fiber.Ctx, ops, serverid string) {
+	c.Set("Content-Type", "text/event-stream")
+	c.Set("Cache-control", "no-cache")
+	c.Set("Connection", "keep-alive")
+	c.Set("Transfer-Encoding", "chunked")
 	// 同步任务的结果
 	results := make(chan task.OpsStatus, cast.ToInt(os.Getenv("EXEC_CONCURRENCY")))
 	var wg sync.WaitGroup
@@ -45,8 +49,8 @@ func ConcurrentExec(data map[string]serverconfig.Configs, ctx *fiber.Ctx, ops, s
 				taskResult.SvcName = cnf.SvcName
 				taskResult.ServerID = cnf.ServerId
 				results <- taskResult
-				ctx.WriteString(fmt.Sprintf("%s ServerID:%s IP:%s SvcName:%s Failed|%s\n", ops, cnf.ServerId, cnf.IP, cnf.SvcName, stdErr.String()))
-				if bw, ok := ctx.Response().BodyWriter().(*bufio.Writer); ok {
+				c.WriteString(fmt.Sprintf("%s ServerID:%s IP:%s SvcName:%s Failed|%s\n", ops, cnf.ServerId, cnf.IP, cnf.SvcName, stdErr.String()))
+				if bw, ok := c.Response().BodyWriter().(*bufio.Writer); ok {
 					bw.Flush()
 				}
 				return
@@ -56,8 +60,8 @@ func ConcurrentExec(data map[string]serverconfig.Configs, ctx *fiber.Ctx, ops, s
 			taskResult.SvcName = cnf.SvcName
 			taskResult.ServerID = cnf.ServerId
 			results <- taskResult
-			ctx.WriteString(fmt.Sprintf("%s ServerID:%s IP:%s SvcName:%s Success\n", ops, cnf.ServerId, cnf.IP, cnf.SvcName))
-			if bw, ok := ctx.Response().BodyWriter().(*bufio.Writer); ok {
+			c.WriteString(fmt.Sprintf("%s ServerID:%s IP:%s SvcName:%s Success\n", ops, cnf.ServerId, cnf.IP, cnf.SvcName))
+			if bw, ok := c.Response().BodyWriter().(*bufio.Writer); ok {
 				bw.Flush()
 			}
 		}(&v, ops)
@@ -74,9 +78,9 @@ func ConcurrentExec(data map[string]serverconfig.Configs, ctx *fiber.Ctx, ops, s
 			failed++
 		}
 	}
-	ctx.WriteString(FormatLine("TASK [result]", "*"))
-	ctx.WriteString(fmt.Sprintf("Total: %d\t  Success:%d\t  Failed:%d\n", total, success, failed))
-	if bw, ok := ctx.Response().BodyWriter().(*bufio.Writer); ok {
+	c.WriteString(FormatLine("TASK [result]", "*"))
+	c.WriteString(fmt.Sprintf("Total: %d\t  Success:%d\t  Failed:%d\n", total, success, failed))
+	if bw, ok := c.Response().BodyWriter().(*bufio.Writer); ok {
 		bw.Flush()
 	}
 	if ops == "start" {

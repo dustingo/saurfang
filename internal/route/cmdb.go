@@ -6,7 +6,7 @@ import (
 	"saurfang/internal/handler/cmdbhandler"
 	"saurfang/internal/service/cmdbservice"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 func CMDBRouter(app *fiber.App) *fiber.Router {
