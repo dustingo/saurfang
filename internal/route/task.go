@@ -9,10 +9,20 @@ import (
 	"saurfang/internal/service/taskservice"
 )
 
-func TaskRouter(app *fiber.App) *fiber.Router {
-	taskRouter := app.Group("/api/v1/task")
+type TaskRouteModule struct {
+	Namespace string
+	Comment   string
+}
+
+func (t *TaskRouteModule) Info() (namespace string, comment string) {
+	namespace = t.Namespace
+	comment = t.Comment
+	return t.Namespace, t.Comment
+}
+func (t *TaskRouteModule) RegisterRoutesModule(r *fiber.App) {
+	taskRouter := r.Group(t.Namespace)
 	/*
-		发布任务
+		创建发布任务
 	*/
 	deployservice := taskservice.NewDeployService(config.DB)
 	deployhandler := taskhandler.NewDeployHandler(deployservice)
@@ -23,7 +33,7 @@ func TaskRouter(app *fiber.App) *fiber.Router {
 	taskRouter.Get("/deploy/listPerPage", deployhandler.Handler_ShowDeployPerPage)
 
 	/*
-		playbook
+		创建playbook
 	*/
 	playbookservice := taskservice.NewPlaybookService(config.Etcd, os.Getenv("GAME_PLAYBOOK_NAMESPACE"))
 	playbookhandler := taskhandler.NewPlaybookHandler(playbookservice)
@@ -43,14 +53,23 @@ func TaskRouter(app *fiber.App) *fiber.Router {
 	taskRouter.Get("/upload/records", uploadhandler.Handler_ShowUploadRecords)
 	taskRouter.Get("/upload/server", uploadhandler.Handler_UploadServerPackage)
 	/*
-		游戏服配置发布任务
+		创建游戏服配置发布任务
 	*/
 	gameconfigDeployTaskService := taskservice.NewConfigDeployService(config.DB)
 	gameconfigDeployTaskHandler := taskhandler.NewConfigDeployHandler(gameconfigDeployTaskService)
 	taskRouter.Post("/config/create", gameconfigDeployTaskHandler.Handler_CreateConfigDeployTask)
 	taskRouter.Delete("/config/delete/:id", gameconfigDeployTaskHandler.Handler_DeleteConfigDeployTask)
 	taskRouter.Get("/config/list", gameconfigDeployTaskHandler.Handler_ShowConfigDeployTask)
-
+	/*
+		创建计划任务
+	*/
+	cronjobTaskService := taskservice.NewCronjobService(config.DB)
+	cronjobTaskHandler := taskhandler.NewCronjobHandler(cronjobTaskService)
+	taskRouter.Post("/cronjob/create", cronjobTaskHandler.Handler_CreateCronjobTask)
+	taskRouter.Delete("/cronjob/delete/:id", cronjobTaskHandler.Handler_DeleteCronjobTask)
+	taskRouter.Put("/cronjob/update/:id", cronjobTaskHandler.Handler_UpdateCronjobTask)
+	taskRouter.Get("/cronjob/list", cronjobTaskHandler.Handler_ShowCronjobTask)
+	taskRouter.Put("/cronjob/reset/:id", cronjobTaskHandler.Handler_ResetCronjobStatus)
 	/*
 		执行任务
 	*/
@@ -67,5 +86,7 @@ func TaskRouter(app *fiber.App) *fiber.Router {
 	taskRouter.Delete("/ops/delete/:id", normakTaskHandler.Handler_DeleteOpsNormalTask)
 	taskRouter.Get("/ops/listPerPage", normakTaskHandler.Handler_ShowOpsNormalTaskPerPage)
 	taskRouter.Get("/ops/select", normakTaskHandler.Handler_CrontabJobTaskSelect)
-	return &taskRouter
+}
+func init() {
+	RegisterRoutesModule(&TaskRouteModule{Namespace: "/api/v1/task", Comment: "运维操作管理"})
 }

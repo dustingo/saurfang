@@ -9,13 +9,24 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-func GameRouter(app *fiber.App) *fiber.Router {
-	channelService := gameservice.NewChannelService(config.DB)
-	channelHandler := gamehandler.NewHostHandler(channelService)
+type GameRouteModule struct {
+	Namespace string
+	Comment   string
+}
+
+func (g *GameRouteModule) Info() (namespace string, comment string) {
+	namespace = g.Namespace
+	comment = g.Comment
+	return g.Namespace, g.Comment
+}
+
+func (g *GameRouteModule) RegisterRoutesModule(r *fiber.App) {
+	gameRouter := r.Group(g.Namespace)
 	/*
 		渠道
 	*/
-	gameRouter := app.Group("/api/v1/game")
+	channelService := gameservice.NewChannelService(config.DB)
+	channelHandler := gamehandler.NewHostHandler(channelService)
 	gameRouter.Post("/channel/create", channelHandler.Handler_CreateChannel)
 	gameRouter.Delete("/channel/delete/:id", channelHandler.Handler_DeleteChannel)
 	gameRouter.Put("/channel/update/:id", channelHandler.Handler_UpdateChannel)
@@ -52,5 +63,7 @@ func GameRouter(app *fiber.App) *fiber.Router {
 	gameRouter.Put("/config/update", serverconfigHandler.Handler_UpdateServerConfig)
 	gameRouter.Get("/config/list", serverconfigHandler.Handler_ListServerConfig)
 	gameRouter.Get("/config/listByKey/:key", serverconfigHandler.Handler_ListServerConfigBykey)
-	return &gameRouter
+}
+func init() {
+	RegisterRoutesModule(&GameRouteModule{Namespace: "/api/v1/game", Comment: "游戏服管理"})
 }

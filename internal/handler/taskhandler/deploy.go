@@ -153,6 +153,10 @@ func (d *DeployHandler) Handler_ShowDeployPerPage(c fiber.Ctx) error {
 
 // Handler_RunGameDeployTask 执行程序发布任务
 func (d *DeployHandler) Handler_RunGameDeployTask(c fiber.Ctx) error {
+	c.Set("Content-Type", "text/event-stream")
+	c.Set("Cache-control", "no-cache")
+	c.Set("Connection", "keep-alive")
+	c.Set("Transfer-Encoding", "chunked")
 	hosts := c.Query("hosts")
 	taskID, _ := strconv.Atoi(c.Query("tid"))
 	taskSvc := taskservice.NewDeployService(config.DB)
@@ -236,16 +240,16 @@ func (d *DeployHandler) Handler_RunGameDeployTask(c fiber.Ctx) error {
 		}
 	}
 	reader, writer := io.Pipe()
-	defer writer.Close()
-	err = tools.RunAnsibleDeployPlaybooks(strings.Join(inventoryHosts, ","), datasource, task, lastConfigsMap, c)
-	if err != nil {
-		writer.Write([]byte("deploy failed: " + err.Error()))
-	}
+	go tools.RunAnsibleDeployPlaybooks(strings.Join(inventoryHosts, ","), datasource, task, lastConfigsMap, *writer)
 	return c.SendStream(reader)
 }
 
 // Handler_RunOpsTask 执行常规ansible playbook任务
 func (d *DeployHandler) Handler_RunOpsTask(c fiber.Ctx) error {
+	c.Set("Content-Type", "text/event-stream")
+	c.Set("Cache-control", "no-cache")
+	c.Set("Connection", "keep-alive")
+	c.Set("Transfer-Encoding", "chunked")
 	execTime := time.Now()
 	taskID, err := strconv.Atoi(c.Params("id"))
 	if err != nil {
@@ -282,15 +286,16 @@ func (d *DeployHandler) Handler_RunOpsTask(c fiber.Ctx) error {
 	hosts := taskInfo.Hosts
 	playbooks_keys := taskInfo.Playbooks
 	reader, writer := io.Pipe()
-	defer writer.Close()
-	if err := tools.RunAnsibleOpsPlaybooks(hosts, playbooks_keys, c); err != nil {
-		writer.Write([]byte("run ops task failed: " + err.Error()))
-	}
+	go tools.RunAnsibleOpsPlaybooks(hosts, playbooks_keys, *writer)
 	return c.SendStream(reader)
 }
 
 // Handler_RunConfigDeployTask 配置发布
 func (d *DeployHandler) Handler_RunConfigDeployTask(c fiber.Ctx) error {
+	c.Set("Content-Type", "text/event-stream")
+	c.Set("Cache-control", "no-cache")
+	c.Set("Connection", "keep-alive")
+	c.Set("Transfer-Encoding", "chunked")
 	hosts := c.Query("hosts")
 	reader, writer := io.Pipe()
 	go func(target string) {

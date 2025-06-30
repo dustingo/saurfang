@@ -1,11 +1,9 @@
 package tools
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/gofiber/fiber/v3"
 	"html/template"
 	"io"
 	"os"
@@ -21,24 +19,12 @@ import (
 	"time"
 )
 
-type FlushingWriter struct {
-	ctx fiber.Ctx
-}
-
-func (fw *FlushingWriter) Write(p []byte) (n int, err error) {
-	n, err = fw.ctx.Write(p)
-	if bw, ok := fw.ctx.Response().BodyWriter().(*bufio.Writer); ok {
-		bw.Flush()
-	}
-	return n, err
-}
-
 // RunAnsibleDeployPlaybooks 发布进程
-func RunAnsibleDeployPlaybooks(hosts string, ds *datasource.SaurfangDatasources, pts *task.SaurfangPublishtasks, cnf map[string]serverconfig.Configs, ctx fiber.Ctx) error {
-	flushingWriter := &FlushingWriter{ctx: ctx}
+func RunAnsibleDeployPlaybooks(hosts string, ds *datasource.SaurfangDatasources, pts *task.SaurfangPublishtasks, cnf map[string]serverconfig.Configs, writer io.PipeWriter) {
+	defer writer.Close()
 	plbs, err := newCommandPlaybook(ds, pts, cnf)
 	if err != nil {
-		return err
+		writer.Write([]byte("deploy failed: " + err.Error()))
 	}
 	ansiblePlaybookOptions := &playbook.AnsiblePlaybookOptions{
 		Connection: "ssh",
@@ -51,22 +37,21 @@ func RunAnsibleDeployPlaybooks(hosts string, ds *datasource.SaurfangDatasources,
 	exec := measure.NewExecutorTimeMeasurement(
 		execute.NewDefaultExecute(
 			execute.WithCmd(playbookTasks),
-			execute.WithWrite(flushingWriter),
+			execute.WithWrite(&writer),
 		),
 	)
 	err = exec.Execute(context.TODO())
 	if err != nil {
-		return err
+		writer.Write([]byte("deploy failed: " + err.Error()))
 	}
-	return nil
 }
 
 // RunAnsibleOpsPlaybooks 执行普通任务
-func RunAnsibleOpsPlaybooks(hosts, keys string, ctx fiber.Ctx) error {
-	flushingWriter := &FlushingWriter{ctx: ctx}
+func RunAnsibleOpsPlaybooks(hosts, keys string, writer io.PipeWriter) {
+	defer writer.Close()
 	plbs, err := newOpsTaskPlaybook(keys)
 	if err != nil {
-		return err
+		writer.Write([]byte("run ops task failed: " + err.Error()))
 	}
 	ansiblePlaybookOptions := &playbook.AnsiblePlaybookOptions{
 		Connection: "ssh",
@@ -79,14 +64,13 @@ func RunAnsibleOpsPlaybooks(hosts, keys string, ctx fiber.Ctx) error {
 	exec := measure.NewExecutorTimeMeasurement(
 		execute.NewDefaultExecute(
 			execute.WithCmd(playbookTasks),
-			execute.WithWrite(flushingWriter),
+			execute.WithWrite(&writer),
 		),
 	)
 	err = exec.Execute(context.TODO())
 	if err != nil {
-		return err
+		writer.Write([]byte("run ops task failed: " + err.Error()))
 	}
-	return nil
 }
 func RunAnsibleOpsPlaybooksByCron(hosts, keys string) error {
 	plbs, err := newOpsTaskPlaybook(keys)

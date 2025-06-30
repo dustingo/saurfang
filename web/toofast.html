@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>访问过快 - 请稍后再试</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#1E40AF',
+                        accent: '#60A5FA',
+                        neutral: '#F3F4F6',
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    }
+                },
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .glass-effect {
+                backdrop-filter: blur(10px);
+                background-color: rgba(255, 255, 255, 0.7);
+            }
+            .text-shadow {
+                text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+            .bg-gradient-blue {
+                background: linear-gradient(135deg, #3B82F6 0%, #1E40AF 100%);
+            }
+        }
+    </style>
+</head>
+<body class="font-inter bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen flex items-center justify-center p-4">
+<div class="w-full max-w-md">
+    <!-- 卡片容器 -->
+    <div class="bg-white rounded-2xl shadow-xl overflow-hidden transform transition-all duration-500 hover:shadow-2xl">
+        <!-- 顶部蓝色区域 -->
+        <div class="bg-gradient-blue p-6 text-white text-center relative overflow-hidden">
+            <div class="absolute inset-0 opacity-20">
+                <i class="fa fa-ban text-[200px] absolute -right-20 -top-20 transform rotate-12"></i>
+                <i class="fa fa-exclamation-triangle text-[150px] absolute -left-16 bottom-0 transform -rotate-12"></i>
+            </div>
+            <div class="relative">
+                <div class="w-20 h-20 mx-auto mb-4 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+                    <i class="fa fa-tachometer text-4xl"></i>
+                </div>
+                <h1 class="text-[clamp(1.8rem,5vw,2.5rem)] font-bold text-shadow mb-2">访问过快</h1>
+                <p class="text-blue-100 text-lg opacity-90">请放慢您的操作速度</p>
+            </div>
+        </div>
+
+        <!-- 主要内容区域 -->
+        <div class="p-6">
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 text-primary mb-4">
+                    <i class="fa fa-hourglass-half text-3xl"></i>
+                </div>
+                <h2 class="text-xl font-semibold text-gray-800 mb-2">请求频率超出限制</h2>
+                <p class="text-gray-600 mb-4">
+                    您的操作过于频繁，请稍后再试。这是为了保护系统安全和稳定性。
+                </p>
+                <div class="mb-6">
+                    <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div id="progress-bar" class="h-full bg-gradient-to-r from-blue-400 to-indigo-500 w-0 transition-all duration-1000"></div>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-1">
+                        <span id="countdown">5</span> 秒后可再次尝试
+                    </p>
+                </div>
+            </div>
+
+            <div class="space-y-3 text-center">
+                <button id="retry-btn" class="w-full py-3 px-6 bg-primary hover:bg-secondary text-white font-medium rounded-lg shadow-md transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i class="fa fa-refresh mr-2"></i> 重新尝试
+                </button>
+                <a href="#" class="inline-block py-2 px-4 text-primary hover:text-secondary font-medium transition-colors duration-300">
+                    <i class="fa fa-question-circle mr-1"></i> 为什么会这样？
+                </a>
+            </div>
+        </div>
+
+        <!-- 底部信息 -->
+        <div class="bg-gray-50 p-4 text-center text-gray-500 text-sm">
+            <p>如果您认为这是一个错误，请联系客服</p>
+        </div>
+    </div>
+
+    <!-- 页脚 -->
+    <div class="text-center text-gray-500 text-sm mt-6">
+        <p>© 2025 系统安全保护</p>
+    </div>
+</div>
+
+<script>
+    // 倒计时功能
+    const countdownEl = document.getElementById('countdown');
+    const progressBar = document.getElementById('progress-bar');
+    const retryBtn = document.getElementById('retry-btn');
+    let countdown = 5;
+    const maxCountdown = countdown;
+
+    // 更新倒计时和进度条
+    function updateCountdown() {
+        countdownEl.textContent = countdown;
+        const progress = (1 - countdown / maxCountdown) * 100;
+        progressBar.style.width = `${progress}%`;
+
+        if (countdown <= 0) {
+            clearInterval(timer);
+            retryBtn.disabled = false;
+            retryBtn.classList.remove('disabled:opacity-50');
+            countdownEl.textContent = '0';
+            progressBar.style.width = '100%';
+        } else {
+            countdown--;
+        }
+    }
+
+    // 初始化禁用重试按钮
+    retryBtn.disabled = true;
+
+    // 启动倒计时
+    updateCountdown();
+    const timer = setInterval(updateCountdown, 1000);
+
+    // 重试按钮点击事件
+    retryBtn.addEventListener('click', function() {
+        // 模拟重新加载页面
+        countdown = maxCountdown;
+        retryBtn.disabled = true;
+        retryBtn.classList.add('disabled:opacity-50');
+        updateCountdown();
+        timer = setInterval(updateCountdown, 1000);
+
+        // 这里可以添加实际的重试逻辑
+        // 例如: window.location.reload();
+    });
+</script>
+</body>
+</html>
+    
