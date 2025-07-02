@@ -3,8 +3,10 @@ package pkg
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/md5"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"io"
 )
 
@@ -51,4 +53,20 @@ func DecryptAES(key []byte, token string) (string, error) {
 	}
 
 	return string(plaintext), nil
+}
+
+// 计算字符串的hash
+func Hash(data string) string {
+	hasher := md5.New()
+	hasher.Write([]byte(data))
+	hashBytes := hasher.Sum(nil)
+	return hex.EncodeToString(hashBytes)
+}
+
+// 返回单个IP
+func SingleIP(ips []string) string {
+	if len(ips) == 0 {
+		return ""
+	}
+	return ips[0]
 }

@@ -58,8 +58,10 @@ func (t *TaskRouteModule) RegisterRoutesModule(r *fiber.App) {
 	gameconfigDeployTaskService := taskservice.NewConfigDeployService(config.DB)
 	gameconfigDeployTaskHandler := taskhandler.NewConfigDeployHandler(gameconfigDeployTaskService)
 	taskRouter.Post("/config/create", gameconfigDeployTaskHandler.Handler_CreateConfigDeployTask)
+	// 删除配置发布任务
 	taskRouter.Delete("/config/delete/:id", gameconfigDeployTaskHandler.Handler_DeleteConfigDeployTask)
 	taskRouter.Get("/config/list", gameconfigDeployTaskHandler.Handler_ShowConfigDeployTask)
+	taskRouter.Get("/config/listPerPage", gameconfigDeployTaskHandler.Handler_ShowConfigDeployTaskPerPage)
 	/*
 		创建计划任务
 	*/
@@ -75,6 +77,7 @@ func (t *TaskRouteModule) RegisterRoutesModule(r *fiber.App) {
 	*/
 	// 执行游戏进程发布
 	taskRouter.Get("/run/process/deploy", deployhandler.Handler_RunGameDeployTask)
+	// 执行游戏配置发布
 	taskRouter.Get("/run/config/deploy", deployhandler.Handler_RunConfigDeployTask)
 	taskRouter.Get("/run/task/:id", deployhandler.Handler_RunOpsTask)
 	/*

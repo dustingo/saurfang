@@ -3,18 +3,22 @@ package tools
 
 import (
 	"saurfang/internal/config"
+	"saurfang/internal/models/user"
 	"sync"
 	"time"
 )
 
 type PermissionData struct {
-	ID    uint   `json:"id"`
+	ID    uint   `gorm:"primaryKey" json:"id"`
 	Name  string `json:"name"`
 	Group string `json:"group"`
 }
 
-func InitPermissionsItems(data PermissionData) {
-	config.DB.Table("permissions").FirstOrCreate(&data)
+func InitPermissionsItems(data *PermissionData) {
+	config.DB.Debug().Table("permissions").Where(user.Permission{
+		Name:  data.Name,
+		Group: data.Group,
+	}).FirstOrCreate(&data)
 }
 
 // PermissionCache 账号权限缓存

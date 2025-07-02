@@ -1,6 +1,7 @@
 package userhandler
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gofiber/fiber/v3"
@@ -10,11 +11,10 @@ import (
 	"os"
 	"saurfang/internal/config"
 	"saurfang/internal/models/amis"
-	"saurfang/internal/models/datasource"
+	"saurfang/internal/models/dashboard"
 	"saurfang/internal/models/user"
 	"saurfang/internal/service/userservice"
 	"saurfang/internal/tools"
-	"saurfang/internal/tools/pkg"
 	"strconv"
 	"strings"
 	"time"
@@ -26,6 +26,89 @@ type UserHandler struct {
 
 func NewUserHandler(svc *userservice.UserService) *UserHandler {
 	return &UserHandler{*svc}
+}
+func (u *UserHandler) Handler_CreateRole(c fiber.Ctx) error {
+	var payload user.RolePayload
+	if err := c.Bind().Body(&payload); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  1,
+			"message": err.Error(),
+		})
+	}
+	if err := u.DB.Table("roles").Where("name = ?", payload.Name).FirstOrCreate(&payload).Error; err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  1,
+			"message": err.Error(),
+		})
+	}
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": 0,
+	})
+}
+func (u *UserHandler) Handler_DeleteRole(c fiber.Ctx) error {
+	id, _ := strconv.Atoi(c.Params("id"))
+	if err := u.DB.Table("roles").Where("id = ?", uint(id)).Delete(&user.Role{}).Error; err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  1,
+			"message": err.Error(),
+		})
+	}
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  0,
+		"message": "success",
+	})
+}
+func (u *UserHandler) Handler_ListRole(c fiber.Ctx) error {
+	var roles []user.Role
+	// 查询所有角色并预加载权限
+	result := config.DB.Preload("Permissions").Find(&roles)
+	if result.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  1,
+			"message": result.Error.Error(),
+		})
+	}
+
+	// 转换为响应结构
+	var roleResponses []user.RoleResponse
+	for _, role := range roles {
+		var permissions []user.PermissionItem
+		for _, perm := range role.Permissions {
+			permissions = append(permissions, user.PermissionItem{
+				ID:    perm.ID,
+				Group: perm.Group,
+			})
+		}
+
+		roleResponses = append(roleResponses, user.RoleResponse{
+			ID:          role.ID,
+			Name:        role.Name,
+			Permissions: permissions,
+		})
+	}
+
+	response := user.Response{
+		Data: user.ResponseData{
+			Items: roleResponses,
+		},
+		Message: "success",
+		Status:  0,
+	}
+	return c.Status(fiber.StatusOK).JSON(response)
+}
+func (u *UserHandler) Handler_ListUser(c fiber.Ctx) error {
+	var users []user.UserInfo
+	if err := u.DB.Debug().Raw("select u.username ,ur.`role_id`,r.`name`,u.id  from users u INNER join user_roles ur On u.`id` = ur.`user_id` INNER JOIN `roles`r  ON r.`id` = ur.`role_id`").Scan(&users).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  1,
+			"message": err.Error(),
+		})
+	}
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  0,
+		"message": "success",
+		"data":    users,
+	})
 }
 
 // Handler_ShowUserInfoByRole 查找指定role下的用户缩略信息
@@ -74,8 +157,16 @@ func (u *UserHandler) Handler_SelectRole(c fiber.Ctx) error {
 // Handler_SetUserRole 设置用户角色
 func (u *UserHandler) Handler_SetUserRole(c fiber.Ctx) error {
 	userId, _ := strconv.Atoi(c.Query("userid"))
-	roleId, _ := strconv.Atoi(c.Query("roleid"))
-	if err := u.DB.Table("user_roles").Where("user_id = ?", userId).Update("role_id", roleId).Error; err != nil {
+	payload := struct {
+		Roles int `json:"roles"`
+	}{}
+	if err := c.Bind().Body(&payload); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  1,
+			"message": err.Error(),
+		})
+	}
+	if err := u.DB.Table("user_roles").Where("user_id = ?", userId).Update("role_id", payload.Roles).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  1,
 			"message": err.Error(),
@@ -164,21 +255,33 @@ func (u *UserHandler) Handler_PermissionGroupSelect(c fiber.Ctx) error {
 // Handler_SetRolePermission 设置角色的权限|你也可以修改为设置用户的权限
 func (u *UserHandler) Handler_SetRolePermission(c fiber.Ctx) error {
 	roleId, _ := strconv.Atoi(c.Query("roleid"))
-	permissionIds := strings.Split(c.Query("permissionids"), ",")
+	var data map[string]string
+	if err := json.Unmarshal(c.Body(), &data); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  1,
+			"message": err.Error(),
+		})
+	}
 	var relations []user.RolePermissionRelation
-	for _, pid := range permissionIds {
+	for _, pid := range strings.Split(data["permissions"], ",") {
 		id, _ := strconv.Atoi(pid)
 		relations = append(relations, user.RolePermissionRelation{
 			RoleID:       uint(roleId),
 			PermissionID: uint(id),
 		})
 	}
+	fmt.Println("relations:", relations)
 	tx := u.DB.Begin()
-	if err := tx.Table("role_permissions").
+	// 先清空原有权限
+	if err := tx.Table("role_permissions").Debug().Where("role_id = ?", roleId).Delete(&user.RolePermissionRelation{}).Error; err != nil {
+		tx.Rollback()
+	}
+	if err := tx.Table("role_permissions").Debug().
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "role_id"}, {Name: "permission_id"}},
 			DoNothing: true,
 		}).Create(&relations).Error; err != nil {
+		tx.Rollback()
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  1,
 			"message": err.Error(),
@@ -193,7 +296,8 @@ func (u *UserHandler) Handler_SetRolePermission(c fiber.Ctx) error {
 
 // Handler_UserRegister 用户注册
 func (u *UserHandler) Handler_UserRegister(c fiber.Ctx) error {
-	var payload user.User
+	//var payload user.User
+	var payload user.RegisterPayload
 	if err := c.Bind().Body(&payload); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  1,
@@ -206,31 +310,47 @@ func (u *UserHandler) Handler_UserRegister(c fiber.Ctx) error {
 			"message": "invite code is required",
 		})
 	}
-	if u.DB.Where("code = ? and used = 0", payload.Code).First(&user.InviteCodes{}).Error == nil {
+	var codes user.InviteCodes
+	if err := u.DB.Table("invite_codes").Where("code = ?", payload.Code).First(&codes).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  1,
+			"message": "invite code internal error",
+		})
+	}
+	if codes.Used == 1 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  1,
-			"message": "invite code is already used",
+			"message": "invite code already used",
 		})
 	}
-	apiToken, err := pkg.EncryptAES([]byte(os.Getenv("JWT_TOKEN_SECRET")), payload.Username)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  1,
-			"message": err.Error(),
-		})
-	}
-	payload.Token = apiToken
+	//apiToken, err := pkg.EncryptAES([]byte(os.Getenv("JWT_TOKEN_SECRET")), payload.Username)
+	//if err != nil {
+	//	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+	//		"status":  1,
+	//		"message": err.Error(),
+	//	})
+	//}
+	//payload.Token = apiToken
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(payload.Password), 10)
 	payload.Password = string(hashedPassword)
-	if err := u.DB.Create(&payload); err != nil {
+	result := u.DB.Table("users").Where("username = ?", payload.Username).FirstOrCreate(&payload)
+	if result.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  1,
-			"message": err.Error,
+			"message": result.Error.Error(),
 		})
+	}
+	if result.RowsAffected > 0 {
+		if err := config.DB.Table("user_roles").Create(&user.UserRole{UserID: payload.ID, RoleID: 4}).Error; err != nil {
+			log.Println("初始用户角色失败：", err.Error())
+		}
 	}
 	if err := u.DB.Model(&user.InviteCodes{}).Where("code = ?", payload.Code).Update("used", 1).Error; err != nil {
 		log.Println("update user invite code error:", err)
 	}
+	//分配默认角色
+
+	config.DB.Table("user_roles").Where("user_id")
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  0,
 		"message": "success",
@@ -240,7 +360,7 @@ func (u *UserHandler) Handler_UserRegister(c fiber.Ctx) error {
 // Handler_UserLogin 用户登录
 func (u *UserHandler) Handler_UserLogin(c fiber.Ctx) error {
 	var userInfo user.User
-	var loginStatus datasource.LoginRecords
+	var loginStatus dashboard.LoginRecords
 	var payload user.LoginPayload
 	if err := c.Bind().Body(&payload); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -287,7 +407,6 @@ func (u *UserHandler) Handler_UserLogin(c fiber.Ctx) error {
 		"status":  0,
 		"message": "login success",
 	})
-
 }
 
 // Handler_UserLogout 用户退出

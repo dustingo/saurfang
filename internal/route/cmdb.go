@@ -62,6 +62,17 @@ func (c *CMDBRouteModule) RegisterRoutesModule(r *fiber.App) {
 	cmdbRouter.Get("/group/idtoname", cmdbGroupHandler.Handler_GroupIdToName)
 	// 新增主机选择归属组
 	cmdbRouter.Get("/group/select", cmdbGroupHandler.Handler_SelectGroupForHost)
+	/*
+		云主机自动同步
+	*/
+	syncService := cmdbservice.NewAutoSyncService(config.DB)
+	syncHandler := cmdbhandler.NewAutoSyncHandler(syncService)
+	cmdbRouter.Post("/sync/create", syncHandler.Handler_CreateAutoSyncConfig)
+	cmdbRouter.Delete("/sync/delete/:id", syncHandler.Handler_DeleteAutoSyncConfig)
+	cmdbRouter.Put("/sync/update/:id", syncHandler.Handler_UpdateAutoSyncConfig)
+	cmdbRouter.Get("/sync/list", syncHandler.Handler_ShowAutoSyncConfig)
+	cmdbRouter.Get("/sync/select", syncHandler.Handler_AutoSyncConfigSelect)
+	cmdbRouter.Post("/sync/run", syncHandler.Handler_AutoSync)
 }
 func init() {
 	RegisterRoutesModule(&CMDBRouteModule{Namespace: "/api/v1/cmdb", Comment: "资源管理"})

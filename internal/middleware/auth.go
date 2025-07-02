@@ -3,7 +3,6 @@ package middleware
 import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gofiber/fiber/v3"
-	"log"
 	"os"
 	"saurfang/internal/config"
 	"strings"
@@ -11,9 +10,8 @@ import (
 
 func UserAuth() fiber.Handler {
 	return func(ctx fiber.Ctx) error {
-		log.Println("Request Path: ", string(ctx.Request().URI().Path()))
+		//log.Println("Request Path: ", string(ctx.Request().URI().Path()))
 		if strings.HasPrefix(string(ctx.Request().URI().Path()), "/api/v1/common") {
-			log.Println("white list /api/v1/common")
 			return ctx.Next()
 		}
 		ck := ctx.Cookies("token")
@@ -47,7 +45,6 @@ func UserAuth() fiber.Handler {
 		} else {
 			perm = string(ctx.Request().URI().Path())
 		}
-		log.Println("perm: ", perm)
 		if hasPermission(uint(role.(float64)), perm) {
 			return ctx.Next()
 		} else {
@@ -67,7 +64,6 @@ func hasPermission(roleid uint, path string) bool {
 	var ups []UserPermission
 	// 查找role_permissions里是否有请求权限
 	if err := config.DB.Debug().Raw("SELECT p.name,p.group,p.`id`  from permissions p JOIN  role_permissions rp ON rp.permission_id = p.id where rp.role_id = ?", roleid).Scan(&ups).Error; err != nil {
-		log.Println("query error: ", err.Error())
 		return false
 	}
 	for _, g := range ups {

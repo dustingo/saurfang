@@ -24,15 +24,16 @@ func (u *UserRouteModule) RegisterRoutesModule(r *fiber.App) {
 	*/
 	userService := userservice.NewUserService(config.DB)
 	userHandler := userhandler.NewUserHandler(userService)
+	userRoute.Post("/role/create", userHandler.Handler_CreateRole)
+	userRoute.Delete("/role/delete/:id", userHandler.Handler_DeleteRole)
 	userRoute.Get("/userinfo", userHandler.Handler_ShowUserInfoByRole)
+	userRoute.Delete("/delete", userHandler.Handler_DeleteUser)
+	userRoute.Get("/list", userHandler.Handler_ListUser)
+	userRoute.Get("/role/list", userHandler.Handler_ListRole)
 	userRoute.Put("/role/set", userHandler.Handler_SetUserRole)
 	userRoute.Get("/role/select", userHandler.Handler_SelectRole)
 	userRoute.Put("/role/permission/set", userHandler.Handler_SetRolePermission)
 	userRoute.Get("/role/permission/select", userHandler.Handler_PermissionGroupSelect)
-	//userRoute.Post("/auth/register", userHandler.Handler_UserRegister)
-	//userRoute.Post("/auth/login", userHandler.Handler_UserLogin)
-	//userRoute.Post("/auth/logout", userHandler.Handler_UserLogout)
-	//userRoute.Get("/auth/status", userHandler.Handler_LoginStatus)
 }
 func init() {
 	RegisterRoutesModule(&UserRouteModule{Namespace: "/api/v1/user", Comment: "权限管理"})

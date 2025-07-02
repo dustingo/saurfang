@@ -120,8 +120,18 @@ func (l *LogicServerHandler) Handler_UpdateLogicServer(c fiber.Ctx) error {
 
 // Handler_ListLogicServer 展示逻辑服信息 "/list"
 func (l *LogicServerHandler) Handler_ShowLogicServer(c fiber.Ctx) error {
-	servers, err := l.List()
-	if err != nil {
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	pageSize, _ := strconv.Atoi(c.Query("perPage", "10"))
+	channelId, _ := strconv.Atoi(c.Query("channelId", "1"))
+	var data []gameserver.SaurfangGames
+	var total int64
+	if err := l.DB.Model(&data).Count(&total).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  1,
+			"message": err.Error(),
+		})
+	}
+	if err := l.DB.Offset((page-1)*pageSize).Limit(pageSize).Find(&data, "channel_id = ?", channelId).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  1,
 			"message": err.Error(),
@@ -130,7 +140,7 @@ func (l *LogicServerHandler) Handler_ShowLogicServer(c fiber.Ctx) error {
 	return c.Status(http.StatusOK).JSON(fiber.Map{
 		"status":  0,
 		"message": "success",
-		"data":    servers,
+		"data":    data,
 	})
 }
 

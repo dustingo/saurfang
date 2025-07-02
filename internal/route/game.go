@@ -38,6 +38,7 @@ func (g *GameRouteModule) RegisterRoutesModule(r *fiber.App) {
 	*/
 	logicservice := gameservice.NewLogicServerService(config.DB, config.Etcd)
 	logicHandler := gamehandler.NewLogicServerHandler(logicservice)
+	// 创建游戏服
 	gameRouter.Post("/logic/create", logicHandler.Handler_CreateLogicServer)
 	gameRouter.Delete("/logic/delete", logicHandler.Handler_DeleteLogicServer)
 	gameRouter.Delete("/logic/hosts/delete", logicHandler.Handler_DeleteHostFromLogicServer)
@@ -48,8 +49,11 @@ func (g *GameRouteModule) RegisterRoutesModule(r *fiber.App) {
 	gameRouter.Get("/logic/detail/picker", logicHandler.Handler_ShowServerDetailForPicker)
 	gameRouter.Put("/logic/hosts/assign", logicHandler.Handler_AddHostsToLogicServer)
 	gameRouter.Get("/logic/config/select", logicHandler.Handler_TreeSelectForSyncServerConfig)
+	// 显示游戏服进程列表
 	gameRouter.Get("/logic/process/list", logicHandler.Handler_ShowGameProcesses)
+	// 开启进程
 	gameRouter.Put("/logic/start", logicHandler.Handler_ExecGameops)
+	// 关闭进程
 	gameRouter.Put("/logic/stop", logicHandler.Handler_ExecGameops)
 	gameRouter.Put("/logic/batch/start", logicHandler.Handler_BatchExecgameops)
 	gameRouter.Put("/logic/batch/stop", logicHandler.Handler_BatchExecgameops)

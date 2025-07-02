@@ -11,11 +11,20 @@ package user
 //		Roles    []Role `gorm:"many2many:user_roles;"`
 //	}
 //
+// RegisterPayload 注册
+type RegisterPayload struct {
+	ID       uint   `gorm:"primaryKey" json:"id"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Code     string `json:"code"`
+}
 
 // UserInfo 用户简略信息
 type UserInfo struct {
 	ID       int    `json:"id"`
 	Username string `json:"username"`
+	RoleID   int    `json:"role_id"`
+	Name     string `json:"name"` // role别名
 }
 type LoginPayload struct {
 	Username string `json:"username"`
@@ -29,16 +38,21 @@ type User struct {
 	Password string `json:"-"`
 	Token    string `json:"token"`
 	Code     string `json:"code"`
-	Roles    []Role `gorm:"many2many:user_roles;" json:"roles,omitempty"`
+	Roles    Role   `gorm:"many2many:user_roles;" json:"roles,omitempty"`
 }
 
 // Role 角色
 type Role struct {
 	ID          uint         `gorm:"primaryKey" json:"id"`
 	Name        string       `gorm:"unique" json:"name"`
-	Description string       `json:"description"`
 	Permissions []Permission `gorm:"many2many:role_permissions;" json:"permissions,omitempty"`
 }
+type RolePayload struct {
+	ID   uint   `gorm:"primaryKey" json:"id"`
+	Name string `gorm:"unique" json:"name"`
+}
+
+// UserRole 用户和角色映射
 type UserRole struct {
 	RoleID uint `json:"role_id"`
 	UserID uint `json:"user_id"`
@@ -47,8 +61,8 @@ type UserRole struct {
 // Permission 路由(组)记录
 type Permission struct {
 	ID    uint   `gorm:"primaryKey" json:"id"`
-	Name  string `gorm:"index" json:"name"`  // HTTP方法 (GET, POST等)
-	Group string `gorm:"index" json:"group"` // API路径
+	Name  string `gorm:"index" json:"name"`
+	Group string `gorm:"index" json:"group"`
 }
 type RolePermissionRelation struct {
 	RoleID       uint `gorm:"column:role_id"`

@@ -16,7 +16,6 @@ import (
 	"os"
 	"os/signal"
 	"saurfang/internal/config"
-	"saurfang/internal/middleware"
 	"saurfang/internal/route"
 	"saurfang/internal/tools"
 	"saurfang/internal/tools/pkg"
@@ -63,7 +62,7 @@ func main() {
 				app.Use(cors.New())
 				app.Use(recoverer.New())
 				app.Use(limiter.New(limiter.Config{
-					Max: 10,
+					Max: 200,
 					LimitReached: func(ctx fiber.Ctx) error {
 						ctx.Set("Content-Type", "text/html; charset=utf-8")
 						return ctx.Send([]byte(toofast))
@@ -71,55 +70,18 @@ func main() {
 				}))
 				app.Use(requestid.New())
 				app.Use(logger.New())
-				app.Use(middleware.UserAuth())
-				for id, module := range route.RoutesModules {
+				//	app.Use(middleware.UserAuth())
+				for _, module := range route.RoutesModules {
 					module.RegisterRoutesModule(app)
 					namespace, comment := module.Info()
 					modinfo := tools.PermissionData{
-						ID:    uint(id),
 						Name:  namespace,
 						Group: comment,
 					}
-					tools.InitPermissionsItems(modinfo)
-				}
+					tools.InitPermissionsItems(&modinfo)
+					fmt.Println("路由组: ", namespace, "别名: ", comment)
 
-				//app.Get("/debug", func(ctx fiber.Ctx) error {
-				//	id := ctx.Query("userid")
-				//	user_id, _ := strconv.Atoi(id)
-				//	var res user.UserRole
-				//	// 先确认用户归属组role
-				//	if err := config.DB.Debug().Table("user_roles").Where("user_id = ?", uint(user_id)).First(&res).Error; err != nil {
-				//		return ctx.Status(501).JSON(&fiber.Map{
-				//			"code": 501,
-				//			"msg":  err.Error,
-				//		})
-				//	}
-				//	fmt.Println("roleid = ", res.RoleID)
-				//	var perms []user.Permission
-				//	if err := config.DB.Debug().Table("permissions p").Select("p.name", "p.group", "p.id").Joins("JOIN role_permissions rp ON rp.permission_id = p.id").
-				//		Where("rp.role_id = ?", res.RoleID).Scan(&perms).Error; err != nil {
-				//		return ctx.Status(501).JSON(&fiber.Map{
-				//			"code": 501,
-				//			"msg":  err.Error(),
-				//		})
-				//	}
-				//	//if err := config.DB.Debug().Exec("select p.name,p.group,p.`id`  from permissions p JOIN `role_permissions` rp ON rp.`permission_id`  = p.id WHERE rp.`role_id`  = ? ", res.RoleID).Scan(&perms).Error; err != nil {
-				//	//	return ctx.Status(501).JSON(&fiber.Map{
-				//	//		"code": 501,
-				//	//		"msg":  err.Error(),
-				//	//	})
-				//	//}
-				//	//if err := config.DB.Debug().Table("role_permissions").Select("permissions,id,permissions.name,permissions.group").Joins("JOIN permissions ON role_permissions.permission_id = permissions.id").Where("role_permissions.role_id = ?", res.RoleID).Scan(&perms).Error; err != nil {
-				//	//	return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				//	//		"code": fiber.StatusInternalServerError,
-				//	//		"msg":  err.Error(),
-				//	//	})
-				//	//}
-				//	return ctx.Status(200).JSON(fiber.Map{
-				//		"code": 200,
-				//		"data": perms,
-				//	})
-				//})
+				}
 				go pkg.TaskManagerSetup()
 				go pkg.CheckActiveInterval(config.DB)
 				go func() {
