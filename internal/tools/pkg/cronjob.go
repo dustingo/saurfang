@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"os"
 	"saurfang/internal/config"
-	"saurfang/internal/models/datasource"
+	"saurfang/internal/models/dashboard"
 	"saurfang/internal/models/notice"
 	"saurfang/internal/models/task.go"
 	"saurfang/internal/service/taskservice"
@@ -95,14 +95,14 @@ func CronTaskHandler(ctx context.Context, at *asynq.Task) error {
 		return err
 	}
 	defer func(orm *gorm.DB, t string) {
-		var item datasource.SaurfangTaskdashboards
+		var item dashboard.SaurfangTaskdashboards
 		if err := orm.Where("task = ?", t).First(&item).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
-				orm.Create(&datasource.SaurfangTaskdashboards{Task: t, Count: 1})
+				orm.Create(&dashboard.SaurfangTaskdashboards{Task: t, Count: 1})
 			}
 		} else {
 			item.Count += 1
-			orm.Model(&datasource.SaurfangTaskdashboards{}).Where("task = ?", t).Update("count", item.Count)
+			orm.Model(&dashboard.SaurfangTaskdashboards{}).Where("task = ?", t).Update("count", item.Count)
 		}
 	}(config.DB, taskInfo.Description)
 	hosts := taskInfo.Hosts
@@ -110,7 +110,7 @@ func CronTaskHandler(ctx context.Context, at *asynq.Task) error {
 	var cronJobs task.CronJobs
 	// 注意
 	// 由于删除是标记删除，因此在查询时必须加条件
-	if err := config.DB.Debug().Raw("select * from cron_jobs where task_id = ? and deleted_at is null;", taskID).Scan(&cronJobs).Error; err != nil {
+	if err := config.DB.Raw("select * from cron_jobs where task_id = ? and deleted_at is null;", taskID).Scan(&cronJobs).Error; err != nil {
 		return err
 	}
 	err = tools.RunAnsibleOpsPlaybooksByCron(hosts, playbooks_keys)

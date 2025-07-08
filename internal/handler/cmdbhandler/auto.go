@@ -38,7 +38,7 @@ func (a *AutoSyncHandler) Handler_CreateAutoSyncConfig(c fiber.Ctx) error {
 		})
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":  1,
+		"status":  0,
 		"message": "success",
 	})
 }
@@ -74,7 +74,7 @@ func (a *AutoSyncHandler) Handler_UpdateAutoSyncConfig(c fiber.Ctx) error {
 		})
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":  1,
+		"status":  0,
 		"message": "success",
 	})
 }
@@ -88,7 +88,7 @@ func (a *AutoSyncHandler) Handler_DeleteAutoSyncConfig(c fiber.Ctx) error {
 		})
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":  1,
+		"status":  0,
 		"message": "success",
 	})
 }

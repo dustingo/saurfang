@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/signal"
 	"saurfang/internal/config"
+	"saurfang/internal/middleware"
 	"saurfang/internal/route"
 	"saurfang/internal/tools"
 	"saurfang/internal/tools/pkg"
@@ -55,6 +56,7 @@ func main() {
 			config.InitMySQL()
 			config.InitEtcd()
 			config.InitSynq()
+			config.InitCache()
 			if serve {
 				app := fiber.New(fiber.Config{
 					TrustProxy: true,
@@ -70,7 +72,7 @@ func main() {
 				}))
 				app.Use(requestid.New())
 				app.Use(logger.New())
-				//	app.Use(middleware.UserAuth())
+				app.Use(middleware.UserAuth())
 				for _, module := range route.RoutesModules {
 					module.RegisterRoutesModule(app)
 					namespace, comment := module.Info()
@@ -82,6 +84,8 @@ func main() {
 					fmt.Println("路由组: ", namespace, "别名: ", comment)
 
 				}
+				// 加载权限到缓存
+				pkg.WarmUpCache()
 				go pkg.TaskManagerSetup()
 				go pkg.CheckActiveInterval(config.DB)
 				go func() {

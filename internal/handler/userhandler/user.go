@@ -15,6 +15,7 @@ import (
 	"saurfang/internal/models/user"
 	"saurfang/internal/service/userservice"
 	"saurfang/internal/tools"
+	"saurfang/internal/tools/pkg"
 	"strconv"
 	"strings"
 	"time"
@@ -98,7 +99,7 @@ func (u *UserHandler) Handler_ListRole(c fiber.Ctx) error {
 }
 func (u *UserHandler) Handler_ListUser(c fiber.Ctx) error {
 	var users []user.UserInfo
-	if err := u.DB.Debug().Raw("select u.username ,ur.`role_id`,r.`name`,u.id  from users u INNER join user_roles ur On u.`id` = ur.`user_id` INNER JOIN `roles`r  ON r.`id` = ur.`role_id`").Scan(&users).Error; err != nil {
+	if err := u.DB.Raw("select u.username ,ur.`role_id`,r.`name`,u.id  from users u INNER join user_roles ur On u.`id` = ur.`user_id` INNER JOIN `roles`r  ON r.`id` = ur.`role_id`").Scan(&users).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  1,
 			"message": err.Error(),
@@ -115,7 +116,7 @@ func (u *UserHandler) Handler_ListUser(c fiber.Ctx) error {
 func (u *UserHandler) Handler_ShowUserInfoByRole(c fiber.Ctx) error {
 	roleId := c.Query("roleid")
 	var users []user.UserInfo
-	if err := u.DB.Debug().Table("users").Preload("Roles", "id = ?", roleId).Joins("JOIN user_roles ON users.id = user_roles.user_id").
+	if err := u.DB.Table("users").Preload("Roles", "id = ?", roleId).Joins("JOIN user_roles ON users.id = user_roles.user_id").
 		Where("user_roles.role_id = ?", roleId).Scan(&users).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  1,
@@ -270,13 +271,12 @@ func (u *UserHandler) Handler_SetRolePermission(c fiber.Ctx) error {
 			PermissionID: uint(id),
 		})
 	}
-	fmt.Println("relations:", relations)
 	tx := u.DB.Begin()
 	// 先清空原有权限
-	if err := tx.Table("role_permissions").Debug().Where("role_id = ?", roleId).Delete(&user.RolePermissionRelation{}).Error; err != nil {
+	if err := tx.Table("role_permissions").Where("role_id = ?", roleId).Delete(&user.RolePermissionRelation{}).Error; err != nil {
 		tx.Rollback()
 	}
-	if err := tx.Table("role_permissions").Debug().
+	if err := tx.Table("role_permissions").
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "role_id"}, {Name: "permission_id"}},
 			DoNothing: true,
@@ -288,6 +288,7 @@ func (u *UserHandler) Handler_SetRolePermission(c fiber.Ctx) error {
 		})
 	}
 	tx.Commit()
+	pkg.WarmUpCache()
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  0,
 		"message": "success",

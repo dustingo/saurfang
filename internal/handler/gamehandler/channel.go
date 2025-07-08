@@ -138,6 +138,8 @@ func (s *ChannelHandler) Handler_SelectChannel(c fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  0,
 		"message": "success",
-		"options": amisOptions,
+		"data": fiber.Map{
+			"options": amisOptions,
+		},
 	})
 }

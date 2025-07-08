@@ -11,7 +11,7 @@ import (
 	"log"
 	"os"
 	"saurfang/internal/config"
-	"saurfang/internal/models/datasource"
+	"saurfang/internal/models/dashboard"
 	"saurfang/internal/models/serverconfig"
 	"saurfang/internal/models/task.go"
 	"saurfang/internal/service/datasrcservice"
@@ -273,14 +273,14 @@ func (d *DeployHandler) Handler_RunOpsTask(c fiber.Ctx) error {
 		})
 	}
 	defer func(orm *gorm.DB, t string) {
-		var item datasource.SaurfangTaskdashboards
+		var item dashboard.SaurfangTaskdashboards
 		if err := orm.Where("task = ?", t).First(&item).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
-				orm.Create(&datasource.SaurfangTaskdashboards{Task: t, Count: 1})
+				orm.Create(&dashboard.SaurfangTaskdashboards{Task: t, Count: 1})
 			}
 		} else {
 			item.Count += 1
-			orm.Model(&datasource.SaurfangTaskdashboards{}).Where("task = ?", t).Update("count", item.Count)
+			orm.Model(&dashboard.SaurfangTaskdashboards{}).Where("task = ?", t).Update("count", item.Count)
 		}
 	}(config.DB, taskInfo.Description)
 	hosts := taskInfo.Hosts

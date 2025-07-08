@@ -16,3 +16,12 @@ type LoginRecords struct {
 	LastLogin *time.Time `json:"last_login,omitempty"`
 	ClientIP  string     `gorm:"type:varchar(100);default:null" json:"client_ip"`
 }
+
+// 资源统计
+type ResourceStatistics struct {
+	Channels int64 `json:"channels"`
+	Hosts    int64 `json:"hosts"`
+	Groups   int64 `json:"groups"`
+	Games    int64 `json:"games"`
+	Users    int64 `json:"users"`
+}

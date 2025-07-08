@@ -118,13 +118,13 @@ func (u *UploadHandler) Handler_ShowUploadRecords(c fiber.Ctx) error {
 	pageSize, _ := strconv.Atoi(c.Params("pageSize", "10"))
 	var records []upload.UploadRecords
 	var total int64
-	if err := config.DB.Debug().Model(&records).Count(&total).Error; err != nil {
+	if err := config.DB.Model(&records).Count(&total).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  1,
 			"message": err.Error(),
 		})
 	}
-	if err := config.DB.Debug().Order("id DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&records).Error; err != nil {
+	if err := config.DB.Order("id DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&records).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  1,
 			"message": err.Error(),

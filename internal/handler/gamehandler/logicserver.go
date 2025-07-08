@@ -273,7 +273,7 @@ func (l *LogicServerHandler) Handler_AddHostsToLogicServer(c fiber.Ctx) error {
 			})
 		}
 	}
-	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  0,
 		"message": "success",
 	})
@@ -367,7 +367,7 @@ func (l *LogicServerHandler) Handler_ShowGameProcesses(c fiber.Ctx) error {
 
 // Handler_ExecGameops 执行有媳妇操作 start|stop
 func (l *LogicServerHandler) Handler_ExecGameops(c fiber.Ctx) error {
-	serverID := c.Query("server_id")
+	serverID := c.Query("serverid")
 	ops := c.Query("ops")
 	svc := c.Query("svc")
 	config, err := l.Etcd.Get(context.Background(), tools.AddNamespace(serverID, os.Getenv("GAME_CONFIG_NAMESPACE")))

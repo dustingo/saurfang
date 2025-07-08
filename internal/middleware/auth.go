@@ -1,10 +1,13 @@
 package middleware
 
 import (
+	"context"
+	"fmt"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gofiber/fiber/v3"
 	"os"
 	"saurfang/internal/config"
+	"saurfang/internal/tools/pkg"
 	"strings"
 )
 
@@ -61,15 +64,40 @@ func hasPermission(roleid uint, path string) bool {
 		Name  string `json:"name"`
 		Group string `json:"group"`
 	}
-	var ups []UserPermission
-	// 查找role_permissions里是否有请求权限
-	if err := config.DB.Debug().Raw("SELECT p.name,p.group,p.`id`  from permissions p JOIN  role_permissions rp ON rp.permission_id = p.id where rp.role_id = ?", roleid).Scan(&ups).Error; err != nil {
+	key := fmt.Sprintf("role_permission:%d", roleid)
+	if exists, _ := config.CahceClient.Exists(context.Background(), key).Result(); exists < 1 {
 		return false
 	}
-	for _, g := range ups {
-		if g.Name == path {
-			return true
-		}
+	//nullKey := fmt.Sprintf("null_role:%d", roleid)
+	//if exists, _ := config.CahceClient.Exists(context.Background(), nullKey).Result(); exists > 0 {
+	//
+	//}
+	exists, err := config.CahceClient.SIsMember(context.Background(), key, path).Result()
+	if err != nil {
+		return false
+	}
+	if exists {
+		return true
+	}
+	// cache不存在就从数据库中加载
+	if err := pkg.LoadPermissionToRedis(roleid); err != nil {
+		return false
+	}
+	//// 查找role_permissions里是否有请求权限
+	//	//if err := config.DB.Raw("SELECT p.name,p.group,p.`id`  from permissions p JOIN  role_permissions rp ON rp.permission_id = p.id where rp.role_id = ?", roleid).Scan(&ups).Error; err != nil {
+	//	//	return false
+	//	//}
+	//	//for _, g := range ups {
+	//	//	if g.Name == path {
+	//	//		return true
+	//	//	}
+	//	//}
+	exists, err = config.CahceClient.SIsMember(context.Background(), key, path).Result()
+	if err != nil {
+		return false
+	}
+	if exists {
+		return true
 	}
 	return false
 }

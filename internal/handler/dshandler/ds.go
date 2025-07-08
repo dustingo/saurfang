@@ -75,7 +75,8 @@ func (d *DataSourceHandler) Handler_UpdateDS(c fiber.Ctx) error {
 			"message": err.Error(),
 		})
 	}
-	if _, err := d.DataSourceService.Service_ShowDataSourceByID(uint(id)); err != nil {
+	ds.ID = uint(id)
+	if _, err := d.DataSourceService.Service_ShowDataSourceByID(ds.ID); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  1,
 			"message": err.Error(),

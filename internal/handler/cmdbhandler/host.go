@@ -35,8 +35,22 @@ func (h *HostHandler) Handler_ListHosts(c fiber.Ctx) error {
 
 // Handler_ListHostsPerPage 分页显示主机记录
 func (h *HostHandler) Handler_ListHostsPerPage(c fiber.Ctx) error {
-	page, _ := strconv.Atoi(c.Params("page", "1"))
-	pageSize, _ := strconv.Atoi(c.Params("perPafe", "10"))
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	pageSize, _ := strconv.Atoi(c.Query("perPage", "10"))
+	//var hosts []gamehost.SaurfangHosts
+	//var total int64
+	//if err := h.DB.Model(&gamehost.SaurfangHosts{}).Count(&total).Error; err != nil {
+	//	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+	//		"status":  1,
+	//		"message": err.Error(),
+	//	})
+	//}
+	//if err := h.DB.Offset((page - 1) * pageSize).Limit(pageSize).Find(&hosts).Error; err != nil {
+	//	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+	//		"status":  1,
+	//		"message": err.Error(),
+	//	})
+	//}
 	hosts, total, err := h.ListPerPage(page, pageSize)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{

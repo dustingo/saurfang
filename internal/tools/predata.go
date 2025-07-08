@@ -15,7 +15,7 @@ type PermissionData struct {
 }
 
 func InitPermissionsItems(data *PermissionData) {
-	config.DB.Debug().Table("permissions").Where(user.Permission{
+	config.DB.Table("permissions").Where(user.Permission{
 		Name:  data.Name,
 		Group: data.Group,
 	}).FirstOrCreate(&data)

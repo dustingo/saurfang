@@ -11,7 +11,7 @@ import (
 
 func UploadToOss(target int) (path, source string, err error) {
 	var ossInfo datasource.SaurfangDatasources
-	if err := config.DB.Debug().Raw("select * from saurfang_datasources where id = ?;", target).Scan(&ossInfo).Error; err != nil {
+	if err := config.DB.Raw("select * from saurfang_datasources where id = ?;", target).Scan(&ossInfo).Error; err != nil {
 		return "", "", err
 	}
 	args := []string{
