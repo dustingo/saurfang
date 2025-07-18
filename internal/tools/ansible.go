@@ -20,7 +20,7 @@ import (
 )
 
 // RunAnsibleDeployPlaybooks 发布进程
-func RunAnsibleDeployPlaybooks(hosts string, ds *datasource.SaurfangDatasources, pts *task.SaurfangPublishtasks, cnf map[string]serverconfig.Configs, writer io.PipeWriter) {
+func RunAnsibleDeployPlaybooks(hosts string, ds *datasource.SaurfangDatasources, pts *task.SaurfangPublishtask, cnf map[string]serverconfig.Configs, writer io.PipeWriter) {
 	defer writer.Close()
 	plbs, err := newCommandPlaybook(ds, pts, cnf)
 	if err != nil {
@@ -120,7 +120,7 @@ func newOpsTaskPlaybook(playbookKeys string) ([]string, error) {
 	}
 	return plbs, nil
 }
-func newCommandPlaybook(s *datasource.SaurfangDatasources, ts *task.SaurfangPublishtasks, cnf map[string]serverconfig.Configs) (string, error) {
+func newCommandPlaybook(s *datasource.SaurfangDatasources, ts *task.SaurfangPublishtask, cnf map[string]serverconfig.Configs) (string, error) {
 	var buf bytes.Buffer
 	//var varsMap map[string]interface{} = make(map[string]interface{})
 	var deployTask task.TemplateData

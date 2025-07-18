@@ -91,9 +91,12 @@ func (h *HuaweiClient) Fetch() (*[]huaweiyun.ECS, error) {
 			return &servers, err
 		}
 		instance := huaweiyun.ECS{}
-		if err := json.Unmarshal([]byte(response.String()), &instance); err != nil {
-			log.Println("unmarshal error", err.Error())
-			return &servers, nil
+		data, err := json.Marshal(response)
+		if err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(data, &instance); err != nil {
+			return &servers, err
 		}
 		servers = append(servers, instance)
 		if len(instance.ServersLinks) == 0 {

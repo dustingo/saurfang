@@ -111,6 +111,48 @@ func (u *UserHandler) Handler_ListUser(c fiber.Ctx) error {
 		"data":    users,
 	})
 }
+func (u *UserHandler) Handler_SelectUser(c fiber.Ctx) error {
+	var users []user.UserInfo
+	if err := u.DB.Table("users").Find(&users).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  1,
+			"message": "failed to load users",
+		})
+	}
+	var op amis.AmisOptions
+	var ops []amis.AmisOptions
+	for _, user := range users {
+		op.Label = user.Username
+		op.Value = int(user.ID)
+		ops = append(ops, op)
+	}
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  0,
+		"message": "success",
+		"data": fiber.Map{
+			"options": ops,
+		},
+	})
+}
+func (u *UserHandler) Handler_UserMapping(c fiber.Ctx) error {
+	var usermapping map[string]interface{} = make(map[string]interface{})
+	var users []user.UserInfo
+	if err := u.DB.Table("users").Find(&users).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  1,
+			"message": "failed to load users",
+		})
+	}
+	for _, user := range users {
+		usermapping[strconv.Itoa(int(user.ID))] = user.Username
+	}
+	usermapping["*"] = "未知用户"
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  0,
+		"message": "success",
+		"data":    usermapping,
+	})
+}
 
 // Handler_ShowUserInfoByRole 查找指定role下的用户缩略信息
 func (u *UserHandler) Handler_ShowUserInfoByRole(c fiber.Ctx) error {

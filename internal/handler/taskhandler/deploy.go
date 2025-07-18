@@ -39,7 +39,7 @@ func NewDeployHandler(svc *taskservice.DeployService) *DeployHandler {
 // Handler_CreateDeployTask 创建程序发布任务
 func (d *DeployHandler) Handler_CreateDeployTask(c fiber.Ctx) error {
 	var payload task.PublishTaskParams
-	var task task.SaurfangPublishtasks
+	var task task.SaurfangPublishtask
 	id, err := strconv.Atoi(c.Params("id"))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -259,7 +259,7 @@ func (d *DeployHandler) Handler_RunOpsTask(c fiber.Ctx) error {
 		})
 	}
 	defer func(orm *gorm.DB, t time.Time, id int) {
-		if err := orm.Model(&task.SaurfangOpstasks{}).Where("id = ?", taskID).Update("last_execution", t).Error; err != nil {
+		if err := orm.Model(&task.SaurfangOpstask{}).Where("id = ?", taskID).Update("last_execution", t).Error; err != nil {
 			log.Println("update ops task last_execution failed")
 		}
 		//orm.Exec("update saurfang_opstasks set last_execution =  ? where id = ? ;", t, taskID)

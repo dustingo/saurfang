@@ -9,13 +9,13 @@ import (
 
 // OpsTaskService
 type OpsTaskService struct {
-	base.BaseGormRepository[task.SaurfangOpstasks]
+	base.BaseGormRepository[task.SaurfangOpstask]
 	Ns string
 }
 
 // NewOpsTaskService
 func NewOpsTaskService(db *gorm.DB) *OpsTaskService {
 	return &OpsTaskService{
-		BaseGormRepository: base.BaseGormRepository[task.SaurfangOpstasks]{DB: db},
+		BaseGormRepository: base.BaseGormRepository[task.SaurfangOpstask]{DB: db},
 	}
 }

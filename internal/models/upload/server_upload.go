@@ -16,8 +16,8 @@ type UploadConfig struct {
 	ServerPath string `json:"serverPath"` // 本地解压后的存储目录
 }
 
-// UploadRecords 服务器端上传记录
-type UploadRecords struct {
+// UploadRecord 服务器端上传记录
+type UploadRecord struct {
 	ID         uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	GameServer string    `gorm:"text" json:"game_server"`
 	DestTarget string    `gorm:"text" json:"dest_target"`

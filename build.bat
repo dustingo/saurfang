@@ -20,7 +20,7 @@ set BUILD_TIME=%BUILD_TIME: =_%
 ::cd /d %PROJECT_PATH%
 
 :: 编译命令，嵌入版本信息
-go build -o saurfang -ldflags "-X 'main.BuildVersion=%VERSION%' -X 'main.BuildGoVersion=%GO_VERSION%' -X 'main.BuildTime=%BUILD_TIME%'"
+go build -o saurfang -ldflags "-X 'main.BuildVersion=%VERSION%' -X 'main.BuildGoVersion=%GO_VERSION%' -X 'main.BuildTime=%BUILD_TIME%'" -p 1
 
 echo Build completed.
 pause

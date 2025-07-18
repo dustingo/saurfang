@@ -22,7 +22,7 @@ func NewAutoSyncHandler(svc *cmdbservice.AutoSyncService) *AutoSyncHandler {
 	return &AutoSyncHandler{*svc}
 }
 
-// handler_CreateAutoSyncConfig 创建自动同步配置
+// Handler_CreateAutoSyncConfig handler_CreateAutoSyncConfig 创建自动同步配置
 func (a *AutoSyncHandler) Handler_CreateAutoSyncConfig(c fiber.Ctx) error {
 	var config autosync.SaurfangAutoSync
 	if err := c.Bind().Body(&config); err != nil {
@@ -60,14 +60,15 @@ func (a *AutoSyncHandler) Handler_ShowAutoSyncConfig(c fiber.Ctx) error {
 
 func (a *AutoSyncHandler) Handler_UpdateAutoSyncConfig(c fiber.Ctx) error {
 	id, _ := strconv.Atoi(c.Params("id"))
-	var config autosync.SaurfangAutoSync
-	if err := c.Bind().Body(&config); err != nil {
+	var syncConfig autosync.SaurfangAutoSync
+	if err := c.Bind().Body(&syncConfig); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status": 1,
 			"msg":    err.Error(),
 		})
 	}
-	if err := a.Update(uint(id), &config); err != nil {
+	syncConfig.ID = uint(id)
+	if err := a.UpdateALL(&syncConfig); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status": 1,
 			"msg":    err.Error(),
@@ -108,20 +109,20 @@ func (a *AutoSyncHandler) Handler_AutoSync(c fiber.Ctx) error {
 			"status": 1,
 			"msg":    target.Target + " is invalid",
 		})
-		if targetLabel[0] == "阿里云" {
-			if err := a.AutoSyncAliYunEcs(targetLabel[1]); err != nil {
-				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-					"status": 1,
-					"msg":    err.Error(),
-				})
-			}
-		} else {
-			if err := a.AutoSyncHuaweiECS(targetLabel[1]); err != nil {
-				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-					"status": 1,
-					"msg":    err.Error(),
-				})
-			}
+	}
+	if targetLabel[0] == "阿里云" {
+		if err := a.AutoSyncAliYunEcs(targetLabel[1]); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"status": 1,
+				"msg":    err.Error(),
+			})
+		}
+	} else {
+		if err := a.AutoSyncHuaweiECS(targetLabel[1]); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"status": 1,
+				"msg":    err.Error(),
+			})
 		}
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
@@ -233,7 +234,6 @@ func (a *AutoSyncHandler) AutoSyncHuaweiECS(target string) error {
 	if err := config.DB.Raw("select * from saurfang_hosts").Scan(&localServers).Error; err != nil {
 		return err
 	}
-	//
 	localServerMap := make(map[string]string)
 	//remoteServerMap := make(map[string]string)
 	for _, localserver := range localServers {
@@ -252,9 +252,9 @@ func (a *AutoSyncHandler) AutoSyncHuaweiECS(target string) error {
 				} else if ips.OSEXTIPStype == "floating" {
 					public_ip = ips.Addr
 				}
+				fmt.Println("Private IP: ", private_ip, ", Public IP: ", public_ip)
 			}
 			if hashstring, ok := localServerMap[server.Id]; ok {
-				fmt.Printf("private: ", private_ip, "public: ", public_ip)
 				if pkg.Hash(fmt.Sprintf("%s-%s-%s-%s-%s-%s", server.Id, strconv.Itoa(server.Flavor.Vcpus), strconv.Itoa(server.Flavor.Ram), private_ip, public_ip, server.Name)) != hashstring {
 					sql := fmt.Sprintf("UPDATE saurfang_hosts SET hostname = '%s',public_ip = '%s',private_ip = '%s',cpu='%s',memory='%s',os_name='%s' WHERE instance_id = '%s';",
 						server.Name, public_ip, private_ip, strconv.Itoa(server.Flavor.Vcpus),

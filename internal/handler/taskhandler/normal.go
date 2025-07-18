@@ -17,7 +17,7 @@ func NewOpsTaskHandler(svc *taskservice.OpsTaskService) *OpsTaskHandler {
 }
 
 func (o *OpsTaskHandler) Handler_CreateOpsNormalTask(c fiber.Ctx) error {
-	var task task2.SaurfangOpstasks
+	var task task2.SaurfangOpstask
 	if err := c.Bind().Body(&task); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  1,

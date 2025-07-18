@@ -3,7 +3,7 @@ package task
 import "time"
 
 // SaurfangOpstask ops自定义任务库
-type SaurfangOpstasks struct {
+type SaurfangOpstask struct {
 	ID            uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	CreatedAt     time.Time  `json:"created_at"`
 	Description   string     `gorm:"type:text;comment:任务描述" json:"description"`
@@ -13,8 +13,8 @@ type SaurfangOpstasks struct {
 	LastExecution *time.Time `gorm:"comment:最后执行日期" json:"last_execution,omitempty"`
 }
 
-// AsynqJobs asynq数据结构
-type AsynqJobs struct {
+// AsynqJob asynq数据结构
+type AsynqJob struct {
 	TaskName   string `json:"task_name"`
 	TaskID     int    `json:"task_id"`
 	Spec       string `json:"spec"`
@@ -25,7 +25,7 @@ type AsynqJobs struct {
 }
 
 // SaurfangPublishtask 服务器端发布任务
-type SaurfangPublishtasks struct {
+type SaurfangPublishtask struct {
 	ID          uint   `gorm:"primaryKey;autoIncrement" json:"id"`
 	SourceID    int    `gorm:"comment:数据源ID" json:"source_id"`
 	SourceLabel string `gorm:"type:text;comment:数据源标签" json:"source_label"`
@@ -37,8 +37,8 @@ type SaurfangPublishtasks struct {
 	LastUser      string     `gorm:"type:text;comment:最后执行用户" json:"last_user"`
 }
 
-// SaurfangGameconfigtasks 游戏服配置任务
-type SaurfangGameconfigtasks struct {
+// SaurfangGameconfigtask 游戏服配置任务
+type SaurfangGameconfigtask struct {
 	ID          uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`

@@ -8,13 +8,13 @@ import (
 
 // ConfigDeployService
 type ConfigDeployService struct {
-	base.BaseGormRepository[task.SaurfangGameconfigtasks]
+	base.BaseGormRepository[task.SaurfangGameconfigtask]
 	Ns string
 }
 
 // NewConfigDeployService
 func NewConfigDeployService(db *gorm.DB) *ConfigDeployService {
 	return &ConfigDeployService{
-		BaseGormRepository: base.BaseGormRepository[task.SaurfangGameconfigtasks]{DB: db},
+		BaseGormRepository: base.BaseGormRepository[task.SaurfangGameconfigtask]{DB: db},
 	}
 }

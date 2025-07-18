@@ -1,17 +1,6 @@
 package user
 
-// // User 用户
-//
-//	type User struct {
-//		gorm.Model
-//		Username string `gorm:"unique;not null" form:"username"`
-//		Password string `gorm:"not null" form:"password"`
-//		Token    string `gorm:"text" json:"token"`
-//		Code     string `gorm:"unique;type:varchar(100);not null" json:"code"`
-//		Roles    []Role `gorm:"many2many:user_roles;"`
-//	}
-//
-// RegisterPayload 注册
+// RegisterPayload 注册payload
 type RegisterPayload struct {
 	ID       uint   `gorm:"primaryKey" json:"id"`
 	Username string `json:"username"`

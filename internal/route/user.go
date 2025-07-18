@@ -27,6 +27,8 @@ func (u *UserRouteModule) RegisterRoutesModule(r *fiber.App) {
 	userRoute.Post("/role/create", userHandler.Handler_CreateRole)
 	userRoute.Delete("/role/delete/:id", userHandler.Handler_DeleteRole)
 	userRoute.Get("/userinfo", userHandler.Handler_ShowUserInfoByRole)
+	userRoute.Get("/select", userHandler.Handler_SelectUser)
+	userRoute.Get("/mapping", userHandler.Handler_UserMapping)
 	userRoute.Delete("/delete", userHandler.Handler_DeleteUser)
 	userRoute.Get("/list", userHandler.Handler_ListUser)
 	userRoute.Get("/role/list", userHandler.Handler_ListRole)

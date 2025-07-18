@@ -101,7 +101,7 @@ func (u *UploadHandler) Handler_UploadServerPackage(c fiber.Ctx) error {
 			writer.Write([]byte(fmt.Sprintf("[%v] ERROR 上传到存储失败: %s\n", time.Now().Format("2006-01-02 13:04:05"), err.Error())))
 
 		} else {
-			record := upload.UploadRecords{
+			record := upload.UploadRecord{
 				GameServer: file,
 				DestTarget: s,
 				DestPath:   p,
@@ -116,7 +116,7 @@ func (u *UploadHandler) Handler_UploadServerPackage(c fiber.Ctx) error {
 func (u *UploadHandler) Handler_ShowUploadRecords(c fiber.Ctx) error {
 	page, _ := strconv.Atoi(c.Params("page", "1"))
 	pageSize, _ := strconv.Atoi(c.Params("pageSize", "10"))
-	var records []upload.UploadRecords
+	var records []upload.UploadRecord
 	var total int64
 	if err := config.DB.Model(&records).Count(&total).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{

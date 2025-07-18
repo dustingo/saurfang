@@ -2,6 +2,7 @@ package main
 
 import (
 	_ "embed"
+	"errors"
 	"fmt"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
@@ -12,14 +13,27 @@ import (
 	"github.com/hibiken/asynq"
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
+	"gorm.io/gorm"
 	"log"
 	"os"
 	"os/signal"
 	"saurfang/internal/config"
 	"saurfang/internal/middleware"
+	"saurfang/internal/models/autosync"
+	"saurfang/internal/models/credential"
+	"saurfang/internal/models/dashboard"
+	"saurfang/internal/models/datasource"
+	"saurfang/internal/models/gamechannel"
+	"saurfang/internal/models/gamegroup"
+	"saurfang/internal/models/gamehost"
+	"saurfang/internal/models/gameserver"
+	"saurfang/internal/models/task.go"
+	"saurfang/internal/models/upload"
+	"saurfang/internal/models/user"
 	"saurfang/internal/route"
 	"saurfang/internal/tools"
 	"saurfang/internal/tools/pkg"
+	"strings"
 	"syscall"
 )
 
@@ -59,7 +73,11 @@ func main() {
 			config.InitCache()
 			if serve {
 				app := fiber.New(fiber.Config{
-					TrustProxy: true,
+					TrustProxy:  true,
+					ProxyHeader: fiber.HeaderXForwardedFor,
+					TrustProxyConfig: fiber.TrustProxyConfig{
+						Proxies: strings.Split(os.Getenv("APP_TRUST_PROXY"), ","),
+					},
 				})
 				app.Use(cors.New())
 				app.Use(recoverer.New())
@@ -71,8 +89,19 @@ func main() {
 					},
 				}))
 				app.Use(requestid.New())
-				app.Use(logger.New())
 				app.Use(middleware.UserAuth())
+				app.Use(logger.New(logger.Config{
+					CustomTags: map[string]logger.LogFunc{
+						"requestid": func(output logger.Buffer, c fiber.Ctx, data *logger.Data, extraParam string) (int, error) {
+							return output.WriteString(requestid.FromContext(c))
+						},
+						"user": func(output logger.Buffer, c fiber.Ctx, data *logger.Data, extraParam string) (int, error) {
+							return output.WriteString(c.Get("X-Request-User"))
+						},
+					},
+					Format: "${time} ${user} ${requestid} ${ip} ${status} - ${latency} ${method} ${path} ${error}\n",
+				}))
+
 				for _, module := range route.RoutesModules {
 					module.RegisterRoutesModule(app)
 					namespace, comment := module.Info()
@@ -116,6 +145,38 @@ func main() {
 					log.Fatalln(fmt.Errorf("shutdown app failed: %v", err))
 				}
 				synqSrv.Shutdown()
+			}
+			if migrate {
+				if err := config.DB.AutoMigrate(&credential.UserCredential{}, &upload.UploadRecord{}, &user.User{}, &user.Role{},
+					&gamehost.SaurfangHosts{}, &gamechannel.SaurfangChannels{}, &gamegroup.SaurfangGroups{}, &gameserver.SaurfangGames{},
+					&gameserver.SaurfangGameHosts{}, &datasource.SaurfangDatasources{}, &task.CronJobs{}, &task.SaurfangPublishtask{},
+					&task.SaurfangGameconfigtask{}, &dashboard.SaurfangTaskdashboards{}, &dashboard.LoginRecords{}, &dashboard.ResourceStatistics{},
+					&autosync.SaurfangAutoSync{}, &user.InviteCodes{}); err != nil {
+					log.Fatalln("AutoMigrate failed:", err)
+				}
+				defaultRoles := []user.Role{
+					{Name: "管理员"},
+					{Name: "运维"},
+					{Name: "研发"},
+					{Name: "未指定"},
+				}
+				for _, role := range defaultRoles {
+					var existing user.Role
+					if err := config.DB.Table("roles").Where("name = ?", role.Name).First(&existing).Error; err != nil {
+						if errors.Is(err, gorm.ErrRecordNotFound) {
+							if err := config.DB.Table("roles").Create(&role).Error; err != nil {
+								log.Fatalln("Create role failed:", err)
+							}
+						} else {
+							log.Fatalln("failed to query role:", err)
+						}
+					}
+				}
+			}
+			if generate {
+				if err := tools.GenerateInviteCodes(char); err != nil {
+					log.Fatalln("GenerateInviteCodes failed:", err)
+				}
 			}
 		},
 	}

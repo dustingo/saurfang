@@ -45,7 +45,7 @@ func TestHandler_CreateDeployTask(t *testing.T) {
 	}
 	mockDataSourceService.On("ShowdsByID", uint(1)).Return(expectedDataSource, nil)
 
-	expectedTask := task.SaurfangPublishtasks{
+	expectedTask := task.SaurfangPublishtask{
 		ID:          uint(1),
 		SourceLabel: "test-label",
 		Become:      1,

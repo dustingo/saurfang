@@ -36,15 +36,14 @@ func checkActive(public_ip, private_ip string, port int) (bool, error) {
 }
 func CheckActiveInterval(db *gorm.DB) {
 	// 待优化
-	// is_active 状态需要增加缓存来避免数据库重复写入
-
+	// is_active 状态需要增加缓存来避免数据库重复写入s
 	ctx := context.Background()
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			const maxConcurrency = 10
+			const maxConcurrency = 2
 			sem := semaphore.NewWeighted(int64(maxConcurrency))
 			// 获取主机列表
 			var hosts []gamehost.SaurfangHosts

@@ -15,7 +15,7 @@ func NewCronjobHandler(svc *taskservice.CronjobService) *CronjobHandler {
 	return &CronjobHandler{*svc}
 }
 func (j *CronjobHandler) Handler_CreateCronjobTask(c fiber.Ctx) error {
-	var synqJobs task.AsynqJobs
+	var synqJobs task.AsynqJob
 	if err := c.Bind().Body(&synqJobs); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  1,

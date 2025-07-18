@@ -17,7 +17,7 @@ func NewConfigDeployHandler(svc *taskservice.ConfigDeployService) *ConfigDeployH
 
 // Handler_CreateConfigDeployTask 创建游戏服配置发布任务
 func (h *ConfigDeployHandler) Handler_CreateConfigDeployTask(c fiber.Ctx) error {
-	var task task.SaurfangGameconfigtasks
+	var task task.SaurfangGameconfigtask
 	if err := c.Bind().Body(&task); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  1,

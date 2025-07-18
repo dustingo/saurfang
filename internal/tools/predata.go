@@ -2,6 +2,7 @@
 package tools
 
 import (
+	"math/rand"
 	"saurfang/internal/config"
 	"saurfang/internal/models/user"
 	"sync"
@@ -28,41 +29,30 @@ type PermissionCache struct {
 	ttl   time.Duration            // 缓存有效期
 }
 
-// map[userid]map[group]bool
-//func NewPermissionCache(ttl time.Duration) *PermissionCache {
-//	return &PermissionCache{
-//		cache: make(map[uint]map[string]bool),
-//		ttl:   ttl,
-//	}
-//}
-
-// 从数据库加载权限
-//func (pc *PermissionCache) Load(userID uint) (map[string]bool, error) {
-//	var u user.UserInfo
-//	// 获取用户role
-//	if err := config.DB.Debug().Table("user_roles").Where("user_id = ?", userID).First(&u).Error; err != nil {
-//
-//	}
-//	if err := config.DB.Debug().Table("users").Preload("Roles.Permissions").First(&u, userID).Error; err != nil {
-//		return nil, err
-//	}
-//
-//	permMap := make(map[string]bool)
-//	for _, role := range u.Roles {
-//		for _, perm := range role.Permissions {
-//			key := fmt.Sprintf("%s:%s", perm.Name, perm.Group)
-//			permMap[key] = true
-//		}
-//	}
-//
-//	pc.mutex.Lock()
-//	pc.cache[userID] = permMap
-//	pc.mutex.Unlock()
-//
-//	// 设置定时过期（生产环境建议改用Redis）
-//	time.AfterFunc(pc.ttl, func() {
-//		pc.Delete(userID)
-//	})
-//
-//	return permMap, nil
-//}
+func GenerateInviteCodes(charset string) error {
+	codes := make([]string, 100)
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	for j := 0; j < 100; j++ {
+		b := make([]byte, 10)
+		for i := range b {
+			b[i] = charset[r.Intn(len(charset))]
+		}
+		codes[j] = string(b)
+	}
+	orm := config.DB
+	tx := orm.Begin()
+	for _, code := range codes {
+		inviteCode := &user.InviteCodes{
+			Code: code,
+			Used: 0,
+		}
+		if err := tx.Create(inviteCode).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+	if err := tx.Commit().Error; err != nil {
+		return err
+	}
+	return nil
+}

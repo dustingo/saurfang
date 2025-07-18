@@ -8,12 +8,12 @@ import (
 
 // UploadService
 type UploadService struct {
-	base.BaseGormRepository[upload.UploadRecords]
+	base.BaseGormRepository[upload.UploadRecord]
 }
 
 // NewUploadService
 func NewUploadService(db *gorm.DB) *UploadService {
 	return &UploadService{
-		BaseGormRepository: base.BaseGormRepository[upload.UploadRecords]{DB: db},
+		BaseGormRepository: base.BaseGormRepository[upload.UploadRecord]{DB: db},
 	}
 }

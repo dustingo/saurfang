@@ -8,13 +8,13 @@ import (
 
 // DeployService
 type DeployService struct {
-	base.BaseGormRepository[task.SaurfangPublishtasks]
+	base.BaseGormRepository[task.SaurfangPublishtask]
 	Ns string
 }
 
 // NewDeployService
 func NewDeployService(db *gorm.DB) *DeployService {
 	return &DeployService{
-		BaseGormRepository: base.BaseGormRepository[task.SaurfangPublishtasks]{DB: db},
+		BaseGormRepository: base.BaseGormRepository[task.SaurfangPublishtask]{DB: db},
 	}
 }
