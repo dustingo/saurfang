@@ -9,19 +9,20 @@ import (
 	"path/filepath"
 	"saurfang/internal/config"
 	"saurfang/internal/models/upload"
-	"saurfang/internal/service/taskservice"
+	"saurfang/internal/repository/base"
 	"saurfang/internal/tools"
 	"strconv"
 	"time"
 )
 
 type UploadHandler struct {
-	taskservice.UploadService
+	base.BaseGormRepository[upload.UploadRecord]
+	//taskservice.UploadService
 }
 
-func NewUploadHandler(svc *taskservice.UploadService) *UploadHandler {
-	return &UploadHandler{*svc}
-}
+//	func NewUploadHandler(svc *taskservice.UploadService) *UploadHandler {
+//		return &UploadHandler{*svc}
+//	}
 func (u *UploadHandler) Handler_ShowServerPackage(c fiber.Ctx) error {
 	var files []upload.FileInfo
 	entries, err := os.ReadDir(os.Getenv("SERVER_PACKAGE_SRC_PATH"))

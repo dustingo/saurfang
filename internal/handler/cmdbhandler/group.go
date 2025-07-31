@@ -3,7 +3,7 @@ package cmdbhandler
 import (
 	"saurfang/internal/models/amis"
 	"saurfang/internal/models/gamegroup"
-	"saurfang/internal/service/cmdbservice"
+	"saurfang/internal/repository/base"
 	"strconv"
 	"strings"
 
@@ -11,16 +11,17 @@ import (
 )
 
 type GroupHandler struct {
-	cmdbservice.GroupsService
+	base.BaseGormRepository[gamegroup.Groups]
+	//cmdbservice.GroupsService
 }
 
-func NewGroupHandler(svc *cmdbservice.GroupsService) *GroupHandler {
-	return &GroupHandler{*svc}
-}
+//func NewGroupHandler(svc *cmdbservice.GroupsService) *GroupHandler {
+//	return &GroupHandler{*svc}
+//}
 
 // Handler_CreateNewGroup 创建新服务器归属组
 func (g *GroupHandler) Handler_CreateNewGroup(c fiber.Ctx) error {
-	var group gamegroup.SaurfangGroups
+	var group gamegroup.Groups
 	if err := c.Bind().Body(&group); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  1,
@@ -57,7 +58,7 @@ func (g *GroupHandler) Handler_ListGroups(c fiber.Ctx) error {
 
 // Handler_UpdateGroup 组更新
 func (g *GroupHandler) Handler_UpdateGroup(c fiber.Ctx) error {
-	var group gamegroup.SaurfangGroups
+	var group gamegroup.Groups
 	id, _ := strconv.Atoi(c.Params("id"))
 	if err := c.Bind().Body(&group); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{

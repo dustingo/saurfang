@@ -1,23 +1,25 @@
+// Package task handler 游戏业务设计配置文件发布变更
 package taskhandler
 
 import (
 	"github.com/gofiber/fiber/v3"
 	"saurfang/internal/models/task.go"
-	"saurfang/internal/service/taskservice"
+	"saurfang/internal/repository/base"
 	"strconv"
 )
 
 type ConfigDeployHandler struct {
-	taskservice.ConfigDeployService
+	base.BaseGormRepository[task.ConfigDeployTask]
+	//taskservice.ConfigDeployService
 }
 
-func NewConfigDeployHandler(svc *taskservice.ConfigDeployService) *ConfigDeployHandler {
-	return &ConfigDeployHandler{*svc}
-}
+//func NewConfigDeployHandler(svc *taskservice.ConfigDeployService) *ConfigDeployHandler {
+//	return &ConfigDeployHandler{*svc}
+//}
 
 // Handler_CreateConfigDeployTask 创建游戏服配置发布任务
 func (h *ConfigDeployHandler) Handler_CreateConfigDeployTask(c fiber.Ctx) error {
-	var task task.SaurfangGameconfigtask
+	var task task.ConfigDeployTask
 	if err := c.Bind().Body(&task); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  1,

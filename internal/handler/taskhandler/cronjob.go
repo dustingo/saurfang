@@ -3,17 +3,18 @@ package taskhandler
 import (
 	"github.com/gofiber/fiber/v3"
 	"saurfang/internal/models/task.go"
-	"saurfang/internal/service/taskservice"
+	"saurfang/internal/repository/base"
 	"strconv"
 )
 
 type CronjobHandler struct {
-	taskservice.CronjobService
+	base.BaseGormRepository[task.CronJobs]
+	//taskservice.CronjobService
 }
 
-func NewCronjobHandler(svc *taskservice.CronjobService) *CronjobHandler {
-	return &CronjobHandler{*svc}
-}
+//	func NewCronjobHandler(svc *taskservice.CronjobService) *CronjobHandler {
+//		return &CronjobHandler{*svc}
+//	}
 func (j *CronjobHandler) Handler_CreateCronjobTask(c fiber.Ctx) error {
 	var synqJobs task.AsynqJob
 	if err := c.Bind().Body(&synqJobs); err != nil {

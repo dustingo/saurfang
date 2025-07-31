@@ -3,21 +3,22 @@ package taskhandler
 import (
 	"github.com/gofiber/fiber/v3"
 	"saurfang/internal/models/amis"
-	task2 "saurfang/internal/models/task.go"
-	"saurfang/internal/service/taskservice"
+	"saurfang/internal/models/task.go"
+	"saurfang/internal/repository/base"
 	"strconv"
 )
 
 type OpsTaskHandler struct {
-	taskservice.OpsTaskService
+	base.BaseGormRepository[task.SaurfangOpstask]
+	//taskservice.OpsTaskService
 }
 
-func NewOpsTaskHandler(svc *taskservice.OpsTaskService) *OpsTaskHandler {
-	return &OpsTaskHandler{*svc}
-}
+//func NewOpsTaskHandler(svc *taskservice.OpsTaskService) *OpsTaskHandler {
+//	return &OpsTaskHandler{*svc}
+//}
 
 func (o *OpsTaskHandler) Handler_CreateOpsNormalTask(c fiber.Ctx) error {
-	var task task2.SaurfangOpstask
+	var task task.SaurfangOpstask
 	if err := c.Bind().Body(&task); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  1,

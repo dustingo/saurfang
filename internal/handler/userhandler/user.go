@@ -13,7 +13,7 @@ import (
 	"saurfang/internal/models/amis"
 	"saurfang/internal/models/dashboard"
 	"saurfang/internal/models/user"
-	"saurfang/internal/service/userservice"
+	"saurfang/internal/repository/base"
 	"saurfang/internal/tools"
 	"saurfang/internal/tools/pkg"
 	"strconv"
@@ -22,12 +22,13 @@ import (
 )
 
 type UserHandler struct {
-	userservice.UserService
+	base.BaseGormRepository[user.User]
+	//userservice.UserService
 }
 
-func NewUserHandler(svc *userservice.UserService) *UserHandler {
-	return &UserHandler{*svc}
-}
+//	func NewUserHandler(svc *userservice.UserService) *UserHandler {
+//		return &UserHandler{*svc}
+//	}
 func (u *UserHandler) Handler_CreateRole(c fiber.Ctx) error {
 	var payload user.RolePayload
 	if err := c.Bind().Body(&payload); err != nil {

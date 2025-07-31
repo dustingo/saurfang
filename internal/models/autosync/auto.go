@@ -2,8 +2,8 @@ package autosync
 
 import "time"
 
-// SaurfangAutoSync 配置云厂商自动同步ECS
-type SaurfangAutoSync struct {
+// AutoSync 配置云厂商自动同步ECS
+type AutoSync struct {
 	ID        uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	CreatedAt *time.Time `json:"created_at"`
 	UpdatedAt *time.Time `json:"updated_at"`

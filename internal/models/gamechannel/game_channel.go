@@ -4,8 +4,8 @@ import (
 	"time"
 )
 
-// SaurfangChannel 游戏服渠道
-type SaurfangChannels struct {
+// Channels 游戏服渠道
+type Channels struct {
 	ID          uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`

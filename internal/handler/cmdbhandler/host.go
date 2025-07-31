@@ -2,7 +2,7 @@ package cmdbhandler
 
 import (
 	"saurfang/internal/models/gamehost"
-	"saurfang/internal/service/cmdbservice"
+	"saurfang/internal/repository/base"
 	"strconv"
 	"strings"
 
@@ -10,12 +10,13 @@ import (
 )
 
 type HostHandler struct {
-	cmdbservice.HostsService
+	base.BaseGormRepository[gamehost.Hosts]
+	//cmdbservice.HostsService
 }
 
-func NewHostHandler(svc *cmdbservice.HostsService) *HostHandler {
-	return &HostHandler{*svc}
-}
+//func NewHostHandler(svc *cmdbservice.HostsService) *HostHandler {
+//	return &HostHandler{*svc}
+//}
 
 // Handler_ListHosts 列出全部的服务器
 func (h *HostHandler) Handler_ListHosts(c fiber.Ctx) error {
@@ -70,7 +71,7 @@ func (h *HostHandler) Handler_ListHostsPerPage(c fiber.Ctx) error {
 
 // Handler_CreateHost 创建主机记录
 func (h *HostHandler) Handler_CreateHost(c fiber.Ctx) error {
-	var host gamehost.SaurfangHosts
+	var host gamehost.Hosts
 	if err := c.Bind().Body(&host); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  1,
@@ -93,7 +94,7 @@ func (h *HostHandler) Handler_CreateHost(c fiber.Ctx) error {
 
 // Handler_UpdateHost 根据主机ID更新主机记录
 func (h *HostHandler) Handler_UpdateHost(c fiber.Ctx) error {
-	var host gamehost.SaurfangHosts
+	var host gamehost.Hosts
 	id, _ := strconv.Atoi(c.Params("id"))
 	if err := c.Bind().Body(&host); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{

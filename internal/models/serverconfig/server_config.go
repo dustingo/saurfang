@@ -8,6 +8,16 @@ type Node struct {
 	Value      string  `json:"value,omitempty"` // 仅在 IP 层次设置 Value
 	Children   []*Node `json:"children,omitempty"`
 }
+type ServerListNode struct {
+	Label      string      `json:"label"`
+	SelectMode string      `json:"selectMode"`
+	Value      string      `json:"value,omitempty"` // server name
+	Children   []*Children `json:"children,omitempty"`
+}
+type Children struct {
+	Label string `json:"label"`
+	Value string `json:"value,omitempty"`
+}
 
 //游戏服配置文件结构体
 
@@ -28,8 +38,8 @@ type Configs struct {
 	IP         string                 `json:"ip"`
 }
 
-// GameConfigDto 游戏服配置文件结构体
-type GameConfigDto struct {
+// GameConfig 游戏服配置文件结构体
+type GameConfig struct {
 	Key     string `json:"key"`
 	Setting string `json:"setting"`
 }

@@ -19,11 +19,11 @@ type MockDeployService struct {
 	taskservice.DeployService
 }
 
-func (m *MockDeployService) ShowdsByID(id string) (*datasource.SaurfangDatasources, error) {
+func (m *MockDeployService) ShowdsByID(id string) (*datasource.Datasources, error) {
 	args := m.Called(id)
-	return args.Get(0).(*datasource.SaurfangDatasources), args.Error(1)
+	return args.Get(0).(*datasource.Datasources), args.Error(1)
 }
-func (m *MockDeployService) CreateTask(payload task.PublishTaskParams) error {
+func (m *MockDeployService) CreateTask(payload task.DeployTaskPayload) error {
 	args := m.Called(payload)
 	return args.Error(0)
 }
@@ -39,13 +39,13 @@ func TestHandler_CreateDeployTask(t *testing.T) {
 	mockDataSourceService := new(MockDataSourceService)
 
 	//设置预期行为
-	expectedDataSource := &datasource.SaurfangDatasources{
+	expectedDataSource := &datasource.Datasources{
 		ID:    1,
 		Label: "test-label",
 	}
 	mockDataSourceService.On("ShowdsByID", uint(1)).Return(expectedDataSource, nil)
 
-	expectedTask := task.SaurfangPublishtask{
+	expectedTask := task.GameDeploymentTask{
 		ID:          uint(1),
 		SourceLabel: "test-label",
 		Become:      1,
@@ -60,7 +60,7 @@ func TestHandler_CreateDeployTask(t *testing.T) {
 	app := fiber.New()
 	app.Post("/:id", handler.Handler_CreateDeployTask)
 
-	payload := task.PublishTaskParams{
+	payload := task.DeployTaskPayload{
 		Become:     1,
 		BecomeUser: "test-user",
 		Comment:    "test-comment",

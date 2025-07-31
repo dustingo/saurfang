@@ -4,7 +4,8 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"saurfang/internal/config"
 	"saurfang/internal/handler/credentialhandler"
-	"saurfang/internal/service/credentialservice"
+	"saurfang/internal/models/credential"
+	"saurfang/internal/repository/base"
 )
 
 type CredentialRouteModule struct {
@@ -19,8 +20,9 @@ func (c *CredentialRouteModule) Info() (namespace string, comment string) {
 }
 func (c *CredentialRouteModule) RegisterRoutesModule(r *fiber.App) {
 	credentialRouter := r.Group(c.Namespace)
-	credentialService := credentialservice.NewCredentialService(config.DB)
-	credentialHandler := credentialhandler.NewCredentialHandler(credentialService)
+	//credentialService := credentialservice.NewCredentialService(config.DB)
+	//credentialHandler := credentialhandler.NewCredentialHandler(credentialService)
+	credentialHandler := credentialhandler.CredentialHandler{base.BaseGormRepository[credential.UserCredential]{DB: config.DB}}
 	credentialRouter.Get("/create/:id", credentialHandler.Handler_CreateUserCredential)
 	credentialRouter.Delete("/delete/:id", credentialHandler.Handler_DeleteUserCredential)
 	credentialRouter.Get("/list", credentialHandler.Handler_ShowUserCredential)

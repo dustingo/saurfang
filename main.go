@@ -71,6 +71,7 @@ func main() {
 			config.InitEtcd()
 			config.InitSynq()
 			config.InitCache()
+			config.InitConsul()
 			if serve {
 				app := fiber.New(fiber.Config{
 					TrustProxy:  true,
@@ -115,8 +116,8 @@ func main() {
 				}
 				// 加载权限到缓存
 				pkg.WarmUpCache()
-				go pkg.TaskManagerSetup()
-				go pkg.CheckActiveInterval(config.DB)
+				//go pkg.TaskManagerSetup()
+				//	go pkg.CheckActiveInterval(config.DB)
 				go func() {
 					if err := app.Listen(fmt.Sprintf(":%s", os.Getenv("APP_PORT"))); err != nil {
 						log.Fatalln("Failed to start app: ", err.Error())
@@ -132,7 +133,7 @@ func main() {
 					},
 				)
 				mux := asynq.NewServeMux()
-				mux.HandleFunc("ops", pkg.CronTaskHandler)
+				//mux.HandleFunc("ops", pkg.CronTaskHandler)
 				go func() {
 					if err := synqSrv.Run(mux); err != nil {
 						log.Fatalln("Failed to start synq:", err.Error())
@@ -148,10 +149,10 @@ func main() {
 			}
 			if migrate {
 				if err := config.DB.AutoMigrate(&credential.UserCredential{}, &upload.UploadRecord{}, &user.User{}, &user.Role{},
-					&gamehost.SaurfangHosts{}, &gamechannel.SaurfangChannels{}, &gamegroup.SaurfangGroups{}, &gameserver.SaurfangGames{},
-					&gameserver.SaurfangGameHosts{}, &datasource.SaurfangDatasources{}, &task.CronJobs{}, &task.SaurfangPublishtask{},
-					&task.SaurfangGameconfigtask{}, &dashboard.SaurfangTaskdashboards{}, &dashboard.LoginRecords{}, &dashboard.ResourceStatistics{},
-					&autosync.SaurfangAutoSync{}, &user.InviteCodes{}); err != nil {
+					&gamehost.Hosts{}, &gamechannel.Channels{}, &gamegroup.Groups{}, &gameserver.Games{},
+					&gameserver.GameHosts{}, &datasource.Datasources{}, &task.CronJobs{}, &task.GameDeploymentTask{},
+					&task.ConfigDeployTask{}, &dashboard.TaskDashboards{}, &dashboard.LoginRecords{}, &dashboard.ResourceStatistics{},
+					&autosync.AutoSync{}, &user.InviteCodes{}); err != nil {
 					log.Fatalln("AutoMigrate failed:", err)
 				}
 				defaultRoles := []user.Role{

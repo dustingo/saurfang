@@ -24,21 +24,17 @@ type AsynqJob struct {
 	NtfyTarget string `json:"ntfy_target,omitempty"`
 }
 
-// SaurfangPublishtask 服务器端发布任务
-type SaurfangPublishtask struct {
-	ID          uint   `gorm:"primaryKey;autoIncrement" json:"id"`
-	SourceID    int    `gorm:"comment:数据源ID" json:"source_id"`
-	SourceLabel string `gorm:"type:text;comment:数据源标签" json:"source_label"`
-	//	Dest          string     `gorm:"type:text;comment:目的目录" json:"dest"`
-	Become        int        `gorm:"comment:是否启用become" json:"become"`
-	BecomeUser    string     `gorm:"type:text;comment:become用户" json:"become_user"`
+// GameDeploymentTask 服务器端发布任务
+type GameDeploymentTask struct {
+	ID            uint       `gorm:"primaryKey;autoIncrement" json:"id"`
+	ServerId      string     `gorm:"type:longtext;comment:服务器ServerID" json:"server_id"`
 	Comment       string     `gorm:"type:text;comment:备注" json:"comment"`
 	LastExecution *time.Time `gorm:"comment:最后执行时间" json:"last_execution,omitempty"`
 	LastUser      string     `gorm:"type:text;comment:最后执行用户" json:"last_user"`
 }
 
-// SaurfangGameconfigtask 游戏服配置任务
-type SaurfangGameconfigtask struct {
+// ConfigDeployTask 游戏服配置任务
+type ConfigDeployTask struct {
 	ID          uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
@@ -98,10 +94,17 @@ type OpsStatus struct {
 	SvcName      string `json:"svc_name"`
 }
 
-// PublishTaskParams 创建任务时传参
-type PublishTaskParams struct {
-	Dest       string `json:"dest"`
-	Become     uint   `json:"become"`
-	BecomeUser string `json:"become_user"`
-	Comment    string `json:"comment"`
+// DeployTaskPayload 创建任务时传参
+type DeployTaskPayload struct {
+	ServerID string `json:"server_id"`
+	Comment  string `json:"comment"`
+}
+
+// nomad job eval结果专用
+type JobResult struct {
+	EvalID      string `json:"evalId"`
+	JobID       string `json:"job_id"`
+	Type        string `json:"type"`
+	TriggeredBy string `json:"triggered_by"`
+	Status      string `json:"status"`
 }

@@ -4,29 +4,30 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"saurfang/internal/models/amis"
 	"saurfang/internal/models/datasource"
-	"saurfang/internal/service/datasrcservice"
+	"saurfang/internal/repository/base"
 	"strconv"
 )
 
 // DataSourceHandler
 type DataSourceHandler struct {
-	datasrcservice.DataSourceService
+	base.BaseGormRepository[datasource.Datasources]
+	//datasrcservice.DataSourceService
 }
 
-func NewSDataSourceHandler(svc *datasrcservice.DataSourceService) *DataSourceHandler {
-	return &DataSourceHandler{*svc}
-}
+//func NewSDataSourceHandler(svc *datasrcservice.DataSourceService) *DataSourceHandler {
+//	return &DataSourceHandler{*svc}
+//}
 
 // Handler_CreateDS 创建数据源记录
 func (d *DataSourceHandler) Handler_CreateDS(c fiber.Ctx) error {
-	var ds datasource.SaurfangDatasources
+	var ds datasource.Datasources
 	if err := c.Bind().Body(&ds); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  1,
 			"message": err.Error(),
 		})
 	}
-	if err := d.DataSourceService.Service_CreateDataSource(&ds); err != nil {
+	if err := d.Create(&ds); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  1,
 			"message": err.Error(),
@@ -47,7 +48,7 @@ func (d *DataSourceHandler) Handler_DeleteDS(c fiber.Ctx) error {
 			"message": err.Error(),
 		})
 	}
-	if err := d.DataSourceService.Service_DeleteDataSource(uint(id)); err != nil {
+	if err := d.Delete(uint(id)); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  1,
 			"message": err.Error(),
@@ -61,7 +62,7 @@ func (d *DataSourceHandler) Handler_DeleteDS(c fiber.Ctx) error {
 
 // Handler_UpdateDS 更新数据源记录
 func (d *DataSourceHandler) Handler_UpdateDS(c fiber.Ctx) error {
-	var ds datasource.SaurfangDatasources
+	var ds datasource.Datasources
 	id, err := strconv.Atoi(c.Params("id"))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -76,13 +77,13 @@ func (d *DataSourceHandler) Handler_UpdateDS(c fiber.Ctx) error {
 		})
 	}
 	ds.ID = uint(id)
-	if _, err := d.DataSourceService.Service_ShowDataSourceByID(ds.ID); err != nil {
+	if _, err := d.ListByID(ds.ID); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  1,
 			"message": err.Error(),
 		})
 	}
-	if err := d.DataSourceService.Service_UpdateDataSource(&ds); err != nil {
+	if err := d.Update(uint(id), &ds); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  1,
 			"message": err.Error(),
@@ -96,7 +97,7 @@ func (d *DataSourceHandler) Handler_UpdateDS(c fiber.Ctx) error {
 
 // Handler_ShowDS 展示数据源记录
 func (d *DataSourceHandler) Handler_ShowDS(c fiber.Ctx) error {
-	ds, err := d.DataSourceService.Service_ShowDataSource()
+	ds, err := d.List()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  1,
@@ -118,7 +119,7 @@ func (d *DataSourceHandler) Handler_ShowDSByID(c fiber.Ctx) error {
 			"message": err.Error(),
 		})
 	}
-	ds, err := d.DataSourceService.Service_ShowDataSourceByID(uint(id))
+	ds, err := d.ListByID(uint(id))
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  1,
@@ -132,7 +133,7 @@ func (d *DataSourceHandler) Handler_ShowDSByID(c fiber.Ctx) error {
 	})
 }
 func (d *DataSourceHandler) Handler_SelectDS(c fiber.Ctx) error {
-	ds, err := d.DataSourceService.Service_ShowDataSource()
+	ds, err := d.List()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  1,

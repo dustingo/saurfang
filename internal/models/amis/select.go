@@ -36,3 +36,8 @@ type AmisOptionsString struct {
             }
         ]
 */
+
+type AmisOptionsGeneric[T int | string] struct {
+	Label string `json:"label"`
+	Value T      `json:"value"`
+}

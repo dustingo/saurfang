@@ -31,8 +31,17 @@ func NewDBManager(dsn string) *DBManager {
 func (c *DBManager) Connect() error {
 	var err error
 	for i := 0; i < c.maxRetries; i++ {
-		c.db, err = gorm.Open(mysql.Open(c.dsn), &gorm.Config{})
+		c.db, err = gorm.Open(mysql.Open(c.dsn), &gorm.Config{
+			DisableForeignKeyConstraintWhenMigrating: true,
+		})
 		if err == nil {
+			// 设置连接池配置
+			sqlDB, err := c.db.DB()
+			if err == nil {
+				sqlDB.SetMaxIdleConns(10)
+				sqlDB.SetMaxOpenConns(100)
+				sqlDB.SetConnMaxLifetime(time.Hour)
+			}
 			go c.periodicHealthCheck()
 			return nil
 		}
@@ -63,7 +72,7 @@ func InitMySQL() {
 	HOST := os.Getenv("MYSQL_HOST")
 	PORT := os.Getenv("MYSQL_PORT")
 	DATABASE := os.Getenv("MYSQL_DB")
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", User,
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local&collation=utf8mb4_unicode_ci", User,
 		PASSWORD, HOST, PORT, DATABASE)
 	mysqlManager := NewDBManager(dsn)
 	if err := mysqlManager.Connect(); err != nil {

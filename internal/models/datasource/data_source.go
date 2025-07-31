@@ -2,9 +2,9 @@ package datasource
 
 import "time"
 
-// SaurfangDatasource 发布模板
+// Datasources 发布模板
 // 放弃使用git，使用oss
-type SaurfangDatasources struct {
+type Datasources struct {
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

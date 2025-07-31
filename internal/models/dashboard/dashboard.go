@@ -2,8 +2,8 @@ package dashboard
 
 import "time"
 
-// SaurfangTaskdashboards 任务执行次数的dashboard
-type SaurfangTaskdashboards struct {
+// TaskDashboards 任务执行次数的dashboard
+type TaskDashboards struct {
 	ID    uint   `gorm:"primaryKey;autoIncrement" json:"id"`
 	Task  string `gorm:"type:varchar(100);default:null" json:"task"`
 	Count int    `json:"count"`

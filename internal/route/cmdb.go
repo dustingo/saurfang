@@ -2,11 +2,13 @@
 package route
 
 import (
+	"github.com/gofiber/fiber/v3"
 	"saurfang/internal/config"
 	"saurfang/internal/handler/cmdbhandler"
-	"saurfang/internal/service/cmdbservice"
-
-	"github.com/gofiber/fiber/v3"
+	"saurfang/internal/models/autosync"
+	"saurfang/internal/models/gamegroup"
+	"saurfang/internal/models/gamehost"
+	"saurfang/internal/repository/base"
 )
 
 type CMDBRouteModule struct {
@@ -25,8 +27,9 @@ func (c *CMDBRouteModule) RegisterRoutesModule(r *fiber.App) {
 	/*
 		主机记录
 	*/
-	cmdbHostService := cmdbservice.NewHostsService(config.DB)
-	cmdbHostHandler := cmdbhandler.NewHostHandler(cmdbHostService)
+	//cmdbHostService := cmdbservice.NewHostsService(config.DB)
+	//cmdbHostHandler := cmdbhandler.NewHostHandler(cmdbHostService)
+	cmdbHostHandler := cmdbhandler.HostHandler{base.BaseGormRepository[gamehost.Hosts]{DB: config.DB}}
 	cmdbRouter.Get("/host/list", cmdbHostHandler.Handler_ListHosts)
 	// 分页显示主机记录
 	cmdbRouter.Get("/host/listPerPage", cmdbHostHandler.Handler_ListHostsPerPage)
@@ -46,8 +49,9 @@ func (c *CMDBRouteModule) RegisterRoutesModule(r *fiber.App) {
 		归属组
 	*/
 	// 归属组路由api
-	cmdbGroupService := cmdbservice.NewGroupsService(config.DB)
-	cmdbGroupHandler := cmdbhandler.NewGroupHandler(cmdbGroupService)
+	//cmdbGroupService := cmdbservice.NewGroupsService(config.DB)
+	//cmdbGroupHandler := cmdbhandler.NewGroupHandler(cmdbGroupService)
+	cmdbGroupHandler := cmdbhandler.GroupHandler{base.BaseGormRepository[gamegroup.Groups]{DB: config.DB}}
 	// 创建新归属组
 	cmdbRouter.Post("/group/create", cmdbGroupHandler.Handler_CreateNewGroup)
 	//删除组
@@ -65,8 +69,9 @@ func (c *CMDBRouteModule) RegisterRoutesModule(r *fiber.App) {
 	/*
 		云主机自动同步
 	*/
-	syncService := cmdbservice.NewAutoSyncService(config.DB)
-	syncHandler := cmdbhandler.NewAutoSyncHandler(syncService)
+	//syncService := cmdbservice.NewAutoSyncService(config.DB)
+	//syncHandler := cmdbhandler.NewAutoSyncHandler(syncService)
+	syncHandler := cmdbhandler.AutoSyncHandler{base.BaseGormRepository[autosync.AutoSync]{DB: config.DB}}
 	cmdbRouter.Post("/sync/create", syncHandler.Handler_CreateAutoSyncConfig)
 	cmdbRouter.Delete("/sync/delete/:id", syncHandler.Handler_DeleteAutoSyncConfig)
 	cmdbRouter.Put("/sync/update/:id", syncHandler.Handler_UpdateAutoSyncConfig)

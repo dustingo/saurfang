@@ -4,23 +4,24 @@ import (
 	"fmt"
 	"saurfang/internal/models/amis"
 	"saurfang/internal/models/gamechannel"
-	"saurfang/internal/service/gameservice"
+	"saurfang/internal/repository/base"
 	"strconv"
 
 	"github.com/gofiber/fiber/v3"
 )
 
 type ChannelHandler struct {
-	gameservice.ChannelService
+	base.BaseGormRepository[gamechannel.Channels]
+	//gameservice.ChannelService
 }
 
-func NewHostHandler(svc *gameservice.ChannelService) *ChannelHandler {
-	return &ChannelHandler{*svc}
-}
+//func NewHostHandler(svc *gameservice.ChannelService) *ChannelHandler {
+//	return &ChannelHandler{*svc}
+//}
 
 // Handler_CreateChannel 创建游戏服渠道
 func (s *ChannelHandler) Handler_CreateChannel(c fiber.Ctx) error {
-	var channel gamechannel.SaurfangChannels
+	var channel gamechannel.Channels
 	if err := c.Bind().Body(&channel); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  1,
@@ -57,7 +58,7 @@ func (s *ChannelHandler) Handler_DeleteChannel(c fiber.Ctx) error {
 
 // Handler_UpdateChannel  更新游戏服渠道
 func (s *ChannelHandler) Handler_UpdateChannel(c fiber.Ctx) error {
-	var channel gamechannel.SaurfangChannels
+	var channel gamechannel.Channels
 	id, _ := strconv.Atoi(c.Params("id"))
 	if err := c.Bind().Body(&channel); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{

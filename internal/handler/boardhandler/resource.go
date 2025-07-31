@@ -18,19 +18,19 @@ func Handler_TotalResource(c fiber.Ctx) error {
 	wg.Add(5)
 	go func() {
 		defer wg.Done()
-		config.DB.Model(&gamechannel.SaurfangChannels{}).Count(&channelCount)
+		config.DB.Model(&gamechannel.Channels{}).Count(&channelCount)
 	}()
 	go func() {
 		defer wg.Done()
-		config.DB.Model(&gamehost.SaurfangHosts{}).Count(&hostsCount)
+		config.DB.Model(&gamehost.Hosts{}).Count(&hostsCount)
 	}()
 	go func() {
 		defer wg.Done()
-		config.DB.Model(&gamegroup.SaurfangGroups{}).Count(&groupsCount)
+		config.DB.Model(&gamegroup.Groups{}).Count(&groupsCount)
 	}()
 	go func() {
 		defer wg.Done()
-		config.DB.Model(&gameserver.SaurfangGames{}).Count(&gamesCount)
+		config.DB.Model(&gameserver.Games{}).Count(&gamesCount)
 	}()
 	go func() {
 		defer wg.Done()

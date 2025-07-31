@@ -2,8 +2,8 @@ package gamegroup
 
 import "time"
 
-// SaurfangGroups 游戏服务器归属组
-type SaurfangGroups struct {
+// Groups 游戏服务器归属组
+type Groups struct {
 	ID          uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`

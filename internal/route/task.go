@@ -5,8 +5,9 @@ import (
 	"os"
 	"saurfang/internal/config"
 	"saurfang/internal/handler/taskhandler"
-
-	"saurfang/internal/service/taskservice"
+	"saurfang/internal/models/task.go"
+	"saurfang/internal/models/upload"
+	"saurfang/internal/repository/base"
 )
 
 type TaskRouteModule struct {
@@ -24,9 +25,8 @@ func (t *TaskRouteModule) RegisterRoutesModule(r *fiber.App) {
 	/*
 		创建发布任务
 	*/
-	deployservice := taskservice.NewDeployService(config.DB)
-	deployhandler := taskhandler.NewDeployHandler(deployservice)
-	taskRouter.Post("/deploy/create/:id", deployhandler.Handler_CreateDeployTask)
+	deployhandler := taskhandler.DeployHandler{base.BaseGormRepository[task.GameDeploymentTask]{DB: config.DB}}
+	taskRouter.Post("/deploy/create", deployhandler.Handler_CreateDeployTask)
 	taskRouter.Delete("/deploy/delete/:id", deployhandler.Handler_DeleteDeployTask)
 	taskRouter.Get("/deploy/list", deployhandler.Handler_ShowDeployTask)
 	taskRouter.Get("/deploy/listById/:id", deployhandler.Handler_ShowDeployTaskByID)
@@ -35,8 +35,7 @@ func (t *TaskRouteModule) RegisterRoutesModule(r *fiber.App) {
 	/*
 		创建playbook
 	*/
-	playbookservice := taskservice.NewPlaybookService(config.Etcd, os.Getenv("GAME_PLAYBOOK_NAMESPACE"))
-	playbookhandler := taskhandler.NewPlaybookHandler(playbookservice)
+	playbookhandler := taskhandler.PlaybookHandler{base.NomadJobRepository{Consul: config.ConsulCli, Ns: os.Getenv("GAME_PLAYBOOK_NAMESPACE")}}
 	taskRouter.Post("/playbook/create", playbookhandler.Handler_CreatePlaybook)
 	taskRouter.Delete("/playbook/delete/:key", playbookhandler.Handler_DeletePlaybook)
 	taskRouter.Put("/playbook/update", playbookhandler.Handler_UpdatePlaybook)
@@ -47,26 +46,22 @@ func (t *TaskRouteModule) RegisterRoutesModule(r *fiber.App) {
 	/*
 		上传服务器端
 	*/
-	uploadservice := taskservice.NewUploadService(config.DB)
-	uploadhandler := taskhandler.NewUploadHandler(uploadservice)
+	uploadhandler := taskhandler.UploadHandler{base.BaseGormRepository[upload.UploadRecord]{DB: config.DB}}
 	taskRouter.Get("/upload/file/list", uploadhandler.Handler_ShowServerPackage)
 	taskRouter.Get("/upload/records", uploadhandler.Handler_ShowUploadRecords)
 	taskRouter.Get("/upload/server", uploadhandler.Handler_UploadServerPackage)
 	/*
 		创建游戏服配置发布任务
 	*/
-	gameconfigDeployTaskService := taskservice.NewConfigDeployService(config.DB)
-	gameconfigDeployTaskHandler := taskhandler.NewConfigDeployHandler(gameconfigDeployTaskService)
+	gameconfigDeployTaskHandler := taskhandler.ConfigDeployHandler{base.BaseGormRepository[task.ConfigDeployTask]{DB: config.DB}}
 	taskRouter.Post("/config/create", gameconfigDeployTaskHandler.Handler_CreateConfigDeployTask)
-	// 删除配置发布任务
 	taskRouter.Delete("/config/delete/:id", gameconfigDeployTaskHandler.Handler_DeleteConfigDeployTask)
 	taskRouter.Get("/config/list", gameconfigDeployTaskHandler.Handler_ShowConfigDeployTask)
 	taskRouter.Get("/config/listPerPage", gameconfigDeployTaskHandler.Handler_ShowConfigDeployTaskPerPage)
 	/*
 		创建计划任务
 	*/
-	cronjobTaskService := taskservice.NewCronjobService(config.DB)
-	cronjobTaskHandler := taskhandler.NewCronjobHandler(cronjobTaskService)
+	cronjobTaskHandler := taskhandler.CronjobHandler{base.BaseGormRepository[task.CronJobs]{DB: config.DB}}
 	taskRouter.Post("/cronjob/create", cronjobTaskHandler.Handler_CreateCronjobTask)
 	taskRouter.Delete("/cronjob/delete/:id", cronjobTaskHandler.Handler_DeleteCronjobTask)
 	taskRouter.Put("/cronjob/update/:id", cronjobTaskHandler.Handler_UpdateCronjobTask)
@@ -76,15 +71,14 @@ func (t *TaskRouteModule) RegisterRoutesModule(r *fiber.App) {
 		执行任务
 	*/
 	// 执行游戏进程发布
-	taskRouter.Get("/run/process/deploy", deployhandler.Handler_RunGameDeployTask)
-	// 执行游戏配置发布
-	taskRouter.Get("/run/config/deploy", deployhandler.Handler_RunConfigDeployTask)
-	taskRouter.Get("/run/task/:id", deployhandler.Handler_RunOpsTask)
+	//taskRouter.Get("/run/process/deploy", deployhandler.Handler_RunGameDeployTask)
+	//// 执行游戏配置发布
+	//taskRouter.Get("/run/config/deploy", deployhandler.Handler_RunConfigDeployTask)
+	//taskRouter.Get("/run/task/:id", deployhandler.Handler_RunOpsTask)
 	/*
 		常规任务
 	*/
-	normalTaskService := taskservice.NewOpsTaskService(config.DB)
-	normakTaskHandler := taskhandler.NewOpsTaskHandler(normalTaskService)
+	normakTaskHandler := taskhandler.OpsTaskHandler{base.BaseGormRepository[task.SaurfangOpstask]{DB: config.DB}}
 	taskRouter.Post("/ops/create", normakTaskHandler.Handler_CreateOpsNormalTask)
 	taskRouter.Delete("/ops/delete/:id", normakTaskHandler.Handler_DeleteOpsNormalTask)
 	taskRouter.Get("/ops/listPerPage", normakTaskHandler.Handler_ShowOpsNormalTaskPerPage)

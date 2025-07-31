@@ -1,10 +1,8 @@
 package tools
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"html/template"
 	"io"
 	"os"
 	"saurfang/internal/config"
@@ -12,39 +10,36 @@ import (
 	"github.com/apenella/go-ansible/v2/pkg/execute"
 	"github.com/apenella/go-ansible/v2/pkg/execute/measure"
 	"github.com/apenella/go-ansible/v2/pkg/playbook"
-	"saurfang/internal/models/datasource"
-	"saurfang/internal/models/serverconfig"
 	"saurfang/internal/models/task.go"
 	"strings"
-	"time"
 )
 
 // RunAnsibleDeployPlaybooks 发布进程
-func RunAnsibleDeployPlaybooks(hosts string, ds *datasource.SaurfangDatasources, pts *task.SaurfangPublishtask, cnf map[string]serverconfig.Configs, writer io.PipeWriter) {
-	defer writer.Close()
-	plbs, err := newCommandPlaybook(ds, pts, cnf)
-	if err != nil {
-		writer.Write([]byte("deploy failed: " + err.Error()))
-	}
-	ansiblePlaybookOptions := &playbook.AnsiblePlaybookOptions{
-		Connection: "ssh",
-		Inventory:  fmt.Sprintf("%s%s", hosts, ","),
-	}
-	playbookTasks := playbook.NewAnsiblePlaybookCmd(
-		playbook.WithPlaybooks(plbs),
-		playbook.WithPlaybookOptions(ansiblePlaybookOptions),
-	)
-	exec := measure.NewExecutorTimeMeasurement(
-		execute.NewDefaultExecute(
-			execute.WithCmd(playbookTasks),
-			execute.WithWrite(&writer),
-		),
-	)
-	err = exec.Execute(context.TODO())
-	if err != nil {
-		writer.Write([]byte("deploy failed: " + err.Error()))
-	}
-}
+//func RunAnsibleDeployPlaybooks(hosts string, ds *datasource.Datasources, pts *task.GameDeploymentTask, cnf map[string]serverconfig.Configs, writer io.PipeWriter) {
+//	defer writer.Close()
+//	plbs, err := newCommandPlaybook(ds, pts, cnf)
+//	if err != nil {
+//		writer.Write([]byte("deploy failed: " + err.Error()))
+//	}
+//	ansiblePlaybookOptions := &playbook.AnsiblePlaybookOptions{
+//		Connection: "ssh",
+//		Inventory:  fmt.Sprintf("%s%s", hosts, ","),
+//	}
+//	playbookTasks := playbook.NewAnsiblePlaybookCmd(
+//		playbook.WithPlaybooks(plbs),
+//		playbook.WithPlaybookOptions(ansiblePlaybookOptions),
+//	)
+//	exec := measure.NewExecutorTimeMeasurement(
+//		execute.NewDefaultExecute(
+//			execute.WithCmd(playbookTasks),
+//			execute.WithWrite(&writer),
+//		),
+//	)
+//	err = exec.Execute(context.TODO())
+//	if err != nil {
+//		writer.Write([]byte("deploy failed: " + err.Error()))
+//	}
+//}
 
 // RunAnsibleOpsPlaybooks 执行普通任务
 func RunAnsibleOpsPlaybooks(hosts, keys string, writer io.PipeWriter) {
@@ -120,80 +115,81 @@ func newOpsTaskPlaybook(playbookKeys string) ([]string, error) {
 	}
 	return plbs, nil
 }
-func newCommandPlaybook(s *datasource.SaurfangDatasources, ts *task.SaurfangPublishtask, cnf map[string]serverconfig.Configs) (string, error) {
-	var buf bytes.Buffer
-	//var varsMap map[string]interface{} = make(map[string]interface{})
-	var deployTask task.TemplateData
-	for id, c := range cnf {
-		host := task.Host{
-			Host:       c.IP,
-			BecomeUser: ts.BecomeUser,
-		}
 
-		if ts.Become == 1 {
-			host.Become = "yes"
-		} else {
-			host.Become = "no"
-		}
-		host.Tasks = append(host.Tasks, task.Task{
-			Name:      "Deploy" + "\t" + id + "\t" + c.SvcName,
-			Prefix:    c.Prefix,
-			Dest:      c.ConfigDir,
-			EndPoint:  s.EndPoint,
-			Region:    s.Region,
-			Bucket:    s.Bucket,
-			Path:      s.Path,
-			Provider:  s.Provider,
-			Profile:   s.Profile,
-			AccessKey: s.AccessKey,
-			SecretKey: s.SecretKey,
-		})
-		fmt.Println("tasks = ", host.Tasks)
-		deployTask.Hosts = append(deployTask.Hosts, host)
-	}
-	fmt.Println("data = ", deployTask)
-	tmpl := `
-{{ range .Hosts }}
-- name: "Tasks for host {{ .Host }}"
-  gather_facts: no
-  hosts: {{ .Host }}
-  become: {{ .Become }}
-  {{ if .BecomeUser }}
-  become_user: {{ .BecomeUser }}
-  {{ end }}
-  tasks:
-    {{ range .Tasks }}
-    - name: check rclone config
-      shell: rclone listremotes | grep {{ .Profile }}
-      register: rclone_check
-      ignore_errors: yes
-    - name: "{{ .Name }}"
-      ansible.builtin.shell: |
-        rclone config create {{ .Profile }} s3 provider={{ .Provider }} access_key_id={{ .AccessKey }} secret_access_key={{ .SecretKey }} region={{ .Region }} endpoint={{ .EndPoint }}
-      when: rclone_check.rc != 0
-    - name: deploy server
-      ansible.builtin.shell: |
-        rclone sync  --local-no-set-modtime   --no-update-modtime --no-update-dir-modtime  {{ .Profile }}:{{ .Bucket }}{{ .Path }}{{ .Prefix }} {{ .Dest }}
-    {{ end }}
-{{ end }}
-`
-	t, err := template.New("cmd").Parse(tmpl)
-	if err != nil {
-		return "", fmt.Errorf("template 错误:%v", err.Error())
-	}
-	err = t.Execute(&buf, deployTask)
-	if err != nil {
-		return "", err
-	}
-	fmt.Println(buf.String())
-	timeStamp := time.Now().Format("20060102150405")
-	tempf, err := os.CreateTemp("/tmp", fmt.Sprintf("publish-%s-*.yml", timeStamp))
-	if err != nil {
-		return "", err
-	}
-	_, err = io.WriteString(tempf, buf.String())
-	if err != nil {
-		return "", err
-	}
-	return tempf.Name(), nil
-}
+//func newCommandPlaybook(s *datasource.Datasources, ts *task.GameDeploymentTask, cnf map[string]serverconfig.Configs) (string, error) {
+//	var buf bytes.Buffer
+//	//var varsMap map[string]interface{} = make(map[string]interface{})
+//	var deployTask task.TemplateData
+//	for id, c := range cnf {
+//		host := task.Host{
+//			Host:       c.IP,
+//			BecomeUser: ts.BecomeUser,
+//		}
+//
+//		if ts.Become == 1 {
+//			host.Become = "yes"
+//		} else {
+//			host.Become = "no"
+//		}
+//		host.Tasks = append(host.Tasks, task.Task{
+//			Name:      "Deploy" + "\t" + id + "\t" + c.SvcName,
+//			Prefix:    c.Prefix,
+//			Dest:      c.ConfigDir,
+//			EndPoint:  s.EndPoint,
+//			Region:    s.Region,
+//			Bucket:    s.Bucket,
+//			Path:      s.Path,
+//			Provider:  s.Provider,
+//			Profile:   s.Profile,
+//			AccessKey: s.AccessKey,
+//			SecretKey: s.SecretKey,
+//		})
+//		fmt.Println("tasks = ", host.Tasks)
+//		deployTask.Hosts = append(deployTask.Hosts, host)
+//	}
+//	fmt.Println("data = ", deployTask)
+//	tmpl := `
+//{{ range .Hosts }}
+//- name: "Tasks for host {{ .Host }}"
+//  gather_facts: no
+//  hosts: {{ .Host }}
+//  become: {{ .Become }}
+//  {{ if .BecomeUser }}
+//  become_user: {{ .BecomeUser }}
+//  {{ end }}
+//  tasks:
+//    {{ range .Tasks }}
+//    - name: check rclone config
+//      shell: rclone listremotes | grep {{ .Profile }}
+//      register: rclone_check
+//      ignore_errors: yes
+//    - name: "{{ .Name }}"
+//      ansible.builtin.shell: |
+//        rclone config create {{ .Profile }} s3 provider={{ .Provider }} access_key_id={{ .AccessKey }} secret_access_key={{ .SecretKey }} region={{ .Region }} endpoint={{ .EndPoint }}
+//      when: rclone_check.rc != 0
+//    - name: deploy server
+//      ansible.builtin.shell: |
+//        rclone sync  --local-no-set-modtime   --no-update-modtime --no-update-dir-modtime  {{ .Profile }}:{{ .Bucket }}{{ .Path }}{{ .Prefix }} {{ .Dest }}
+//    {{ end }}
+//{{ end }}
+//`
+//	t, err := template.New("cmd").Parse(tmpl)
+//	if err != nil {
+//		return "", fmt.Errorf("template 错误:%v", err.Error())
+//	}
+//	err = t.Execute(&buf, deployTask)
+//	if err != nil {
+//		return "", err
+//	}
+//	fmt.Println(buf.String())
+//	timeStamp := time.Now().Format("20060102150405")
+//	tempf, err := os.CreateTemp("/tmp", fmt.Sprintf("publish-%s-*.yml", timeStamp))
+//	if err != nil {
+//		return "", err
+//	}
+//	_, err = io.WriteString(tempf, buf.String())
+//	if err != nil {
+//		return "", err
+//	}
+//	return tempf.Name(), nil
+//}

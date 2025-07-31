@@ -1,16 +1,16 @@
 package gamehandler
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
-	clientv3 "go.etcd.io/etcd/client/v3"
+	nomadapi "github.com/hashicorp/nomad/api"
+	"log"
+	"log/slog"
 	"net/http"
 	"os"
-	"saurfang/internal/config"
+	"saurfang/internal/models/amis"
 	"saurfang/internal/models/gameserver"
 	"saurfang/internal/models/serverconfig"
-	"saurfang/internal/service/gameservice"
+	"saurfang/internal/repository/base"
 	"saurfang/internal/tools"
 	"strconv"
 	"strings"
@@ -19,16 +19,13 @@ import (
 )
 
 type LogicServerHandler struct {
-	gameservice.LogicServerService
-}
-
-func NewLogicServerHandler(svc *gameservice.LogicServerService) *LogicServerHandler {
-	return &LogicServerHandler{*svc}
+	base.BaseGormRepository[gameserver.Games]
+	base.NomadJobRepository
 }
 
 // Handler_CreateLogicServer 创建游戏逻辑服
 func (l *LogicServerHandler) Handler_CreateLogicServer(c fiber.Ctx) error {
-	var server gameserver.SaurfangGames
+	var server gameserver.Games
 	if err := c.Bind().Body(&server); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  1,
@@ -78,7 +75,7 @@ func (l *LogicServerHandler) Handler_DeleteHostFromLogicServer(c fiber.Ctx) erro
 		}
 	}()
 	for _, id := range ids {
-		if err := tx.Exec("DELETE FROM saurfang_game_hosts WHERE game_id = ? AND host_id = ?", gameid, id).Error; err != nil {
+		if err := tx.Exec("DELETE FROM game_hosts WHERE game_id = ? AND host_id = ?", gameid, id).Error; err != nil {
 			tx.Rollback()
 			return err
 		}
@@ -98,7 +95,7 @@ func (l *LogicServerHandler) Handler_DeleteHostFromLogicServer(c fiber.Ctx) erro
 // Handler_UpdateLogicServer 更新逻辑服信息 "/update/:id"
 func (l *LogicServerHandler) Handler_UpdateLogicServer(c fiber.Ctx) error {
 	id, _ := strconv.Atoi(c.Params("id"))
-	var servers gameserver.SaurfangGames
+	var servers gameserver.Games
 	if err := c.Bind().Body(&servers); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  1,
@@ -123,7 +120,7 @@ func (l *LogicServerHandler) Handler_ShowLogicServer(c fiber.Ctx) error {
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	pageSize, _ := strconv.Atoi(c.Query("perPage", "10"))
 	channelId, _ := strconv.Atoi(c.Query("channelId", "1"))
-	var data []gameserver.SaurfangGames
+	var data []gameserver.Games
 	var total int64
 	if err := l.DB.Model(&data).Count(&total).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -143,6 +140,29 @@ func (l *LogicServerHandler) Handler_ShowLogicServer(c fiber.Ctx) error {
 		"data":    data,
 	})
 }
+func (l *LogicServerHandler) Handler_ShowLogicServerTree(c fiber.Ctx) error {
+	servers, err := l.List()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  1,
+			"message": err.Error(),
+		})
+	}
+	var ops []amis.AmisOptionsGeneric[string]
+	var op amis.AmisOptionsGeneric[string]
+	for _, sn := range *servers {
+		op.Label = sn.Name
+		op.Value = sn.ServerID
+		ops = append(ops, op)
+	}
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  0,
+		"message": "success",
+		"data": fiber.Map{
+			"options": ops,
+		},
+	})
+}
 
 // Handler_ShowServerDetail 展示逻辑服详细信息 "/detail"
 func (l *LogicServerHandler) Handler_ShowServerDetail(c fiber.Ctx) error {
@@ -151,7 +171,7 @@ func (l *LogicServerHandler) Handler_ShowServerDetail(c fiber.Ctx) error {
 	id, _ := strconv.Atoi(gameID)
 	var serversDetail []gameserver.GameHostsDetail
 	if id < 1 {
-		err := l.DB.Raw("SELECT sh.hostname,sh.id,sh.private_ip from `saurfang_hosts` sh join `saurfang_game_hosts` sgh on sh.id = sgh.host_id  join `saurfang_games`	 sg  on sg.id  = sgh.game_id;").Scan(&serversDetail).Error
+		err := l.DB.Raw("SELECT sh.hostname,sh.id,sh.private_ip from `hosts` sh join `game_hosts` sgh on sh.id = sgh.host_id  join `games`	 sg  on sg.id  = sgh.game_id;").Scan(&serversDetail).Error
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"status":  1,
@@ -165,7 +185,7 @@ func (l *LogicServerHandler) Handler_ShowServerDetail(c fiber.Ctx) error {
 		})
 
 	} else {
-		if err := l.DB.Raw("SELECT sh.hostname,sh.id,sh.private_ip from `saurfang_hosts` sh join `saurfang_game_hosts` sgh on sh.id = sgh.host_id  join `saurfang_games` sg  on sg.id  = sgh.game_id WHERE sg.id  = ?;", gameID).Scan(&serversDetail).Error; err != nil {
+		if err := l.DB.Raw("SELECT sh.hostname,sh.id,sh.private_ip from `hosts` sh join `game_hosts` sgh on sh.id = sgh.host_id  join `games` sg  on sg.id  = sgh.game_id WHERE sg.id  = ?;", gameID).Scan(&serversDetail).Error; err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"status":  1,
 				"message": err.Error(),
@@ -195,13 +215,13 @@ func (l *LogicServerHandler) Handler_ShowGameserverByTree(c fiber.Ctx) error {
     h.hostname AS host_name,
     h.private_ip
 FROM 
-    saurfang_channels c
+    channels c
 JOIN 
-    saurfang_games g ON c.id = g.channel_id
+    games g ON c.id = g.channel_id
 JOIN 
-    saurfang_game_hosts gh ON g.id = gh.game_id 
+    game_hosts gh ON g.id = gh.game_id 
 JOIN 
-    saurfang_hosts h ON gh.host_id = h.id;`
+    hosts h ON gh.host_id = h.id;`
 	if err := l.DB.Raw(query).Scan(&gameInfo).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  1,
@@ -239,13 +259,13 @@ func (l *LogicServerHandler) Handler_ShowServerDetailForPicker(c fiber.Ctx) erro
     h.hostname AS host_name,
     h.private_ip
 FROM 
-    saurfang_channels c
+    channels c
 JOIN 
-    saurfang_games g ON c.id = g.channel_id
+    games g ON c.id = g.channel_id
 JOIN 
-    saurfang_game_hosts gh ON g.id = gh.game_id 
+    game_hosts gh ON g.id = gh.game_id 
 JOIN 
-    saurfang_hosts h ON gh.host_id = h.id;`
+    hosts h ON gh.host_id = h.id;`
 	if err := l.DB.Raw(query).Scan(&gameInfo).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  1,
@@ -266,7 +286,7 @@ func (l *LogicServerHandler) Handler_AddHostsToLogicServer(c fiber.Ctx) error {
 	hostID := strings.Split(hostIds, ",")
 	for _, id := range hostID {
 		uid, _ := strconv.Atoi(id)
-		if err := l.DB.Exec("INSERT INTO saurfang_game_hosts (game_id, host_id) VALUES (?, ?)", gameID, uint(uid)).Error; err != nil {
+		if err := l.DB.Exec("INSERT INTO game_hosts (game_id, host_id) VALUES (?, ?)", gameID, uint(uid)).Error; err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"status":  1,
 				"message": err.Error(),
@@ -296,13 +316,13 @@ func (l *LogicServerHandler) Handler_TreeSelectForSyncServerConfig(c fiber.Ctx) 
     h.hostname AS host_name,
     h.private_ip
 FROM 
-    saurfang_channels c
+    channels c
 JOIN 
-    saurfang_games g ON c.id = g.channel_id
+    games g ON c.id = g.channel_id
 JOIN 
-    saurfang_game_hosts gh ON g.id = gh.game_id 
+    game_hosts gh ON g.id = gh.game_id 
 JOIN 
-    saurfang_hosts h ON gh.host_id = h.id;`
+    hosts h ON gh.host_id = h.id;`
 	if err := l.DB.Raw(query).Scan(&gameInfo).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  1,
@@ -324,130 +344,158 @@ JOIN
 	})
 }
 
-// Handler_ShowGameProcesses 展示所有进程
-func (l *LogicServerHandler) Handler_ShowGameProcesses(c fiber.Ctx) error {
-	var gc serverconfig.Configs
-	var gcs []serverconfig.Configs
-	var gameConfigs serverconfig.GameConfigs
-	var lastConfigsMap map[string]serverconfig.Configs = make(map[string]serverconfig.Configs)
-	configs, err := l.Etcd.Get(context.Background(), os.Getenv("GAME_CONFIG_NAMESPACE"), clientv3.WithPrefix())
-	if err != nil {
+// Handler_ShowChannelServerList 执行发布任务时,选择服务器
+func (l *LogicServerHandler) Handler_ShowChannelServerList(c fiber.Ctx) error {
+	serverList := []struct {
+		Name      string `json:"name"`
+		ServerID  string `json:"server_id"`
+		Channel   string `json:"channel"`
+		ChannelID uint   `json:"channel_id"`
+	}{}
+	if err := l.DB.Table("games as g").Select("g.name,g.server_id,c.name as channel,c.id as channel_id").
+		Joins("join channels c on g.id = c.id").
+		Scan(&serverList).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  1,
-			"message": err.Error(),
+			"error":   err.Error(),
+			"message": "get server list failed",
 		})
 	}
-	for _, kv := range configs.Kvs {
-		if err := json.Unmarshal(kv.Value, &gameConfigs); err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"status":  1,
-				"message": err.Error(),
-			})
-		}
-		for _, cnf := range gameConfigs.Configs {
-			lastConfigsMap[fmt.Sprintf("%s-%s", cnf.ServerId, cnf.SvcName)] = cnf
-		}
+	fmt.Println("serverList = ", serverList)
+	nodes := make(map[string]*serverconfig.ServerListNode)
+	for _, info := range serverList {
+		tools.GenerateSeverList(nodes, info.Channel, fmt.Sprintf("%s(%s)", info.Name, info.ServerID), info.ServerID)
 	}
-	for _, v := range lastConfigsMap {
-		gc.ServerId = v.ServerId
-		gc.SvcName = v.SvcName
-		gc.User = v.User
-		gc.Port = v.Port
-		gc.ConfigDir = v.ConfigDir
-		gc.Start = v.Start
-		gc.Stop = v.Stop
-		gcs = append(gcs, gc)
+	for k, v := range nodes {
+		fmt.Println(k, v)
+	}
+	result := []*serverconfig.ServerListNode{}
+	for _, node := range nodes {
+		result = append(result, node)
 	}
 	return c.Status(http.StatusOK).JSON(fiber.Map{
 		"status":  0,
 		"message": "success",
-		"data":    gcs,
+		"data":    result,
 	})
 }
 
 // Handler_ExecGameops 执行有媳妇操作 start|stop
-func (l *LogicServerHandler) Handler_ExecGameops(c fiber.Ctx) error {
-	serverID := c.Query("serverid")
-	ops := c.Query("ops")
-	svc := c.Query("svc")
-	config, err := l.Etcd.Get(context.Background(), tools.AddNamespace(serverID, os.Getenv("GAME_CONFIG_NAMESPACE")))
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  1,
-			"message": err.Error(),
-		})
-	}
-	if len(config.Kvs) == 0 {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  1,
-			"message": "key not found",
-		})
-	}
-	var configs map[string]serverconfig.Configs = make(map[string]serverconfig.Configs)
-	if svc == "" {
-		for _, kv := range config.Kvs {
-			var gameconfigs serverconfig.GameConfigs
-			if err := json.Unmarshal(kv.Value, &gameconfigs); err != nil {
-				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-					"status":  1,
-					"message": err.Error(),
-				})
-			}
-			for _, cnf := range gameconfigs.Configs {
-				configs[fmt.Sprintf("%s-%s", serverID, cnf.SvcName)] = cnf
-			}
-		}
-	} else {
-		for _, kv := range config.Kvs {
-			var gameconfigs serverconfig.GameConfigs
-			if err := json.Unmarshal(kv.Value, &gameconfigs); err != nil {
-				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-					"status":  1,
-					"message": err.Error(),
-				})
-			}
-			for _, cnf := range gameconfigs.Configs {
-				if cnf.SvcName == svc {
-					configs[fmt.Sprintf("%s-%s", serverID, cnf.SvcName)] = cnf
-				}
-			}
-		}
-	}
-	tools.ConcurrentExec(configs, c, ops, serverID)
-	return c.SendStatus(http.StatusOK)
-}
+//func (l *LogicServerHandler) Handler_ExecGameops(c fiber.Ctx) error {
+//	serverID := c.Query("serverid")
+//	ops := c.Query("ops")
+//	svc := c.Query("svc")
+//	config, err := l.Etcd.Get(context.Background(), tools.AddNamespace(serverID, os.Getenv("GAME_CONFIG_NAMESPACE")))
+//	if err != nil {
+//		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+//			"status":  1,
+//			"message": err.Error(),
+//		})
+//	}
+//	if len(config.Kvs) == 0 {
+//		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+//			"status":  1,
+//			"message": "key not found",
+//		})
+//	}
+//	var configs map[string]serverconfig.Configs = make(map[string]serverconfig.Configs)
+//	if svc == "" {
+//		for _, kv := range config.Kvs {
+//			var gameconfigs serverconfig.GameConfigs
+//			if err := json.Unmarshal(kv.Value, &gameconfigs); err != nil {
+//				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+//					"status":  1,
+//					"message": err.Error(),
+//				})
+//			}
+//			for _, cnf := range gameconfigs.Configs {
+//				configs[fmt.Sprintf("%s-%s", serverID, cnf.SvcName)] = cnf
+//			}
+//		}
+//	} else {
+//		for _, kv := range config.Kvs {
+//			var gameconfigs serverconfig.GameConfigs
+//			if err := json.Unmarshal(kv.Value, &gameconfigs); err != nil {
+//				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+//					"status":  1,
+//					"message": err.Error(),
+//				})
+//			}
+//			for _, cnf := range gameconfigs.Configs {
+//				if cnf.SvcName == svc {
+//					configs[fmt.Sprintf("%s-%s", serverID, cnf.SvcName)] = cnf
+//				}
+//			}
+//		}
+//	}
+//	tools.ConcurrentExec(configs, c, ops, serverID)
+//	return c.SendStatus(http.StatusOK)
+//}
 
-func (l *LogicServerHandler) Handler_BatchExecgameops(c fiber.Ctx) error {
-	serverIDs := c.Query("serverids")
+func (l *LogicServerHandler) Handler_Execgameops(c fiber.Ctx) error {
+	serverIDs := c.Query("server_ids")
 	ops := c.Query("ops")
-	for _, serverID := range strings.Split(serverIDs, ",") {
-		cnf, err := config.Etcd.Get(context.Background(), tools.AddNamespace(serverID, os.Getenv("GAME_CONFIG_NAMESPACE")))
-		if err != nil {
-			return err
-		}
-		if len(cnf.Kvs) == 0 {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"status":  1,
-				"message": "key not found",
-			})
-		}
-		var configs map[string]serverconfig.Configs = make(map[string]serverconfig.Configs)
-		for _, kv := range cnf.Kvs {
-			var gameconfigs serverconfig.GameConfigs
-			if err := json.Unmarshal(kv.Value, &gameconfigs); err != nil {
+	log.Println("BatchExecgameops", "serverids", serverIDs, "ops", ops)
+	switch ops {
+	case "start":
+		for _, serverID := range strings.Split(serverIDs, ",") {
+			gameConfig, err := l.ShowNomadJobByKey(tools.AddNamespace(serverID, os.Getenv("GAME_CONFIG_NAMESPACE")))
+			if err != nil {
 				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 					"status":  1,
-					"message": err.Error(),
+					"message": fmt.Sprintln("search nomad job failed,", err.Error()),
 				})
 			}
-			for _, cnf := range gameconfigs.Configs {
-				configs[fmt.Sprintf("%s-%s", serverID, cnf.SvcName)] = cnf
+			job, err := l.Nomad.Jobs().ParseHCL(gameConfig.Setting, true)
+			if err != nil {
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"status":  1,
+					"message": fmt.Sprintln("parse nomad job failed,", err.Error()),
+				})
 			}
+			go func(id string) {
+				res, _, err := l.Nomad.Jobs().Register(job, &nomadapi.WriteOptions{})
+				if err != nil {
+					// 操作失败,不修改服务器状态
+					slog.Error("register nomad job failed", "message", err.Error(), "serverID", id, "evalID", res.EvalID, "LastContact", res.LastContact)
+					return
+				}
+				// status == 1 online, status ==0 offline
+				l.DB.Exec("UPDATE games set status = 1 where server_id = ?;", id)
+			}(serverID)
 		}
-		tools.ConcurrentExec(configs, c, ops, serverID)
+	case "stop":
+		for _, serverID := range strings.Split(serverIDs, ",") {
+			log.Println("got serverid: ", serverID)
+			gameConfig, err := l.ShowNomadJobByKey(tools.AddNamespace(serverID, os.Getenv("GAME_CONFIG_NAMESPACE")))
+			if err != nil {
+				log.Println("errr", err.Error())
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"status":  1,
+					"message": fmt.Sprintln("search nomad job failed,", err.Error()),
+				})
+			}
+			job, err := l.Nomad.Jobs().ParseHCL(gameConfig.Setting, true)
+			if err != nil {
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"status":  1,
+					"message": fmt.Sprintln("parse nomad job failed,", err.Error()),
+				})
+			}
+			go func(jobID, serverID string) {
+				res, _, err := l.Nomad.Jobs().Deregister(jobID, false, &nomadapi.WriteOptions{})
+				if err != nil {
+					// 操作失败,不修改服务器状态
+					slog.Error("register nomad job failed", "message", err.Error(), "serverID", serverID, "result", res)
+					return
+				}
+				// status == 1 online, status ==0 offline
+				l.DB.Exec("UPDATE games set status = 0 where server_id = ?;", serverID)
+			}(*job.ID, serverID)
+		}
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  0,
-		"message": "success",
+		"message": "applied successfully",
 	})
 }

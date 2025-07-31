@@ -4,7 +4,8 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"saurfang/internal/config"
 	"saurfang/internal/handler/userhandler"
-	"saurfang/internal/service/userservice"
+	"saurfang/internal/models/user"
+	"saurfang/internal/repository/base"
 )
 
 type UserRouteModule struct {
@@ -22,8 +23,9 @@ func (u *UserRouteModule) RegisterRoutesModule(r *fiber.App) {
 	/*
 		用户
 	*/
-	userService := userservice.NewUserService(config.DB)
-	userHandler := userhandler.NewUserHandler(userService)
+	//userService := userservice.NewUserService(config.DB)
+	//userHandler := userhandler.NewUserHandler(userService)
+	userHandler := userhandler.UserHandler{base.BaseGormRepository[user.User]{DB: config.DB}}
 	userRoute.Post("/role/create", userHandler.Handler_CreateRole)
 	userRoute.Delete("/role/delete/:id", userHandler.Handler_DeleteRole)
 	userRoute.Get("/userinfo", userHandler.Handler_ShowUserInfoByRole)

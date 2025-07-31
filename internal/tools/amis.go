@@ -37,3 +37,47 @@ func AddToTree(tree map[string]*serverconfig.Node, ChannelName, GameName, HostNa
 		GameNameNode.Children = append(GameNameNode.Children, gameNode)
 	}
 }
+
+func GenerateSeverList(list map[string]*serverconfig.ServerListNode, ChannelName, GameName, serverID string) {
+
+	// 1. 获取或创建大类节点
+	if _, exists := list[ChannelName]; !exists {
+		list[ChannelName] = &serverconfig.ServerListNode{Label: ChannelName, SelectMode: "list", Children: []*serverconfig.Children{}}
+	}
+	ChannelNameNode := list[ChannelName]
+
+	// 2. 检查游戏名称是否已经存在于大类节点的 Children 中
+	var gameExists bool
+	for _, child := range ChannelNameNode.Children {
+		if child.Label == GameName {
+			gameExists = true
+			break
+		}
+	}
+	// 如果游戏名称不存在，则创建它并加入大类的 Children 列表
+	if !gameExists {
+		gameNode := &serverconfig.Children{
+			Label: GameName,
+			Value: serverID,
+		}
+		ChannelNameNode.Children = append(ChannelNameNode.Children, gameNode)
+	}
+
+	// 3. 检查服务器ID是否已经存在于大类节点的 Children 中
+	var serverExists bool
+	for _, child := range ChannelNameNode.Children {
+		if child.Value == serverID {
+			serverExists = true
+			break
+		}
+	}
+	// 如果服务器ID不存在，则创建它并加入大类的 Children 列表
+	if !serverExists {
+		serverNode := &serverconfig.Children{
+			Label: GameName,
+			Value: serverID,
+		}
+		ChannelNameNode.Children = append(ChannelNameNode.Children, serverNode)
+	}
+
+}

@@ -4,18 +4,19 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"gorm.io/gorm/clause"
 	"saurfang/internal/models/credential"
-	"saurfang/internal/service/credentialservice"
+	"saurfang/internal/repository/base"
 	"saurfang/internal/tools/pkg"
 	"strconv"
 )
 
 type CredentialHandler struct {
-	credentialservice.CredentialService
+	base.BaseGormRepository[credential.UserCredential]
+	//credentialservice.CredentialService
 }
 
-func NewCredentialHandler(svc *credentialservice.CredentialService) *CredentialHandler {
-	return &CredentialHandler{*svc}
-}
+//func NewCredentialHandler(svc *credentialservice.CredentialService) *CredentialHandler {
+//	return &CredentialHandler{*svc}
+//}
 
 // Handler_CreateUserCredential 创建你用户ak、sk
 // 每个userid都只能有一条记录

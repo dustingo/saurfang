@@ -46,7 +46,7 @@ func CheckActiveInterval(db *gorm.DB) {
 			const maxConcurrency = 2
 			sem := semaphore.NewWeighted(int64(maxConcurrency))
 			// 获取主机列表
-			var hosts []gamehost.SaurfangHosts
+			var hosts []gamehost.Hosts
 			if err := db.Select("id", "hostname", "public_ip", "private_ip", "port").Find(&hosts).Error; err != nil {
 				log.Println("db error: ", err)
 				continue
@@ -56,19 +56,19 @@ func CheckActiveInterval(db *gorm.DB) {
 					log.Println("acquire semaphore error: ", err)
 					continue
 				}
-				go func(host gamehost.SaurfangHosts) {
+				go func(host gamehost.Hosts) {
 					defer sem.Release(1)
 					active, err := checkActive(host.PublicIP, host.PrivateIP, host.Port)
 					if err != nil {
 						log.Println("checkActive error:", err)
-						db.Model(&gamehost.SaurfangHosts{}).Where("id = ?", host.ID).Update("is_active", Offline)
+						db.Model(&gamehost.Hosts{}).Where("id = ?", host.ID).Update("is_active", Offline)
 						return
 					}
 					if !active {
 						log.Println("Host not alive:", host.Hostname, host.PublicIP, host.PrivateIP)
-						db.Model(&gamehost.SaurfangHosts{}).Where("id = ?", host.ID).Update("is_active", Offline)
+						db.Model(&gamehost.Hosts{}).Where("id = ?", host.ID).Update("is_active", Offline)
 					} else {
-						db.Model(&gamehost.SaurfangHosts{}).Where("id = ?", host.ID).Update("is_active", Active)
+						db.Model(&gamehost.Hosts{}).Where("id = ?", host.ID).Update("is_active", Active)
 					}
 				}(host)
 			}
