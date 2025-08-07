@@ -3,12 +3,14 @@ package config
 import (
 	"context"
 	"fmt"
-	consulapi "github.com/hashicorp/consul/api"
 	"log"
+	"log/slog"
 	"os"
 	"strconv"
 	"sync"
 	"time"
+
+	consulapi "github.com/hashicorp/consul/api"
 )
 
 var ConsulCli *consulapi.Client
@@ -69,7 +71,7 @@ func (c *ConsulClient) reconnect() error {
 		default:
 		}
 
-		log.Printf("Attempting to reconnect to Consul (attempt %d/%d)", i+1, c.maxRetries)
+		slog.Info("Attempting to reconnect to Consul", "attempt", i+1, "maxRetries", c.maxRetries)
 
 		if err := c.connect(); err != nil {
 			lastErr = err
@@ -79,7 +81,7 @@ func (c *ConsulClient) reconnect() error {
 
 		// 验证连接是否真的可用
 		if _, err := c.client.Status().Leader(); err == nil {
-			log.Println("Successfully reconnected to Consul")
+			slog.Info("Successfully reconnected to Consul")
 			return nil
 		}
 	}
@@ -96,9 +98,9 @@ func (c *ConsulClient) healthCheckLoop() {
 		select {
 		case <-ticker.C:
 			if !c.isHealthy() {
-				log.Println("Consul connection lost, attempting to reconnect...")
+				slog.Error("Consul connection lost, attempting to reconnect...")
 				if err := c.reconnect(); err != nil {
-					log.Printf("Reconnect failed: %v", err)
+					slog.Error("Reconnect failed", "error", err)
 				}
 			}
 		case <-c.ctx.Done():

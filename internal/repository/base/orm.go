@@ -58,24 +58,106 @@ func (r *BaseGormRepository[T]) ListByID(id uint) (*T, error) {
 	return &entity, nil
 }
 
+// GetByCondition 根据条件获取单条记录
+func (r *BaseGormRepository[T]) GetByCondition(condition interface{}, args ...interface{}) (*T, error) {
+	var entity T
+	if err := r.DB.Where(condition, args...).First(&entity).Error; err != nil {
+		return nil, err
+	}
+	return &entity, nil
+}
+
+// ListByCondition 根据条件获取多条记录
+func (r *BaseGormRepository[T]) ListByCondition(condition interface{}, args ...interface{}) ([]T, error) {
+	var entities []T
+	if err := r.DB.Where(condition, args...).Find(&entities).Error; err != nil {
+		return nil, err
+	}
+	return entities, nil
+}
+
 // ListPerPage 分页显示MySQL数据
 func (r *BaseGormRepository[T]) ListPerPage(page, pageSize int) (*[]T, int64, error) {
 	var entity []T
 	var total int64
-	if err := r.DB.Model(&entity).Count(&total).Error; err != nil {
+	if err := r.DB.Debug().Model(&entity).Count(&total).Error; err != nil {
 		return &entity, 0, err
 	}
-	if err := r.DB.Offset((page - 1) * pageSize).Limit(pageSize).Find(&entity).Error; err != nil {
+	if err := r.DB.Debug().Offset((page - 1) * pageSize).Limit(pageSize).Find(&entity).Error; err != nil {
 		return &entity, 0, err
 	}
 	return &entity, total, nil
 }
 
-// List 列出全部MySQL记录
-func (r *BaseGormRepository[T]) List() (*[]T, error) {
+// ListPerPageWithCondition 支持条件查询的分页显示MySQL数据
+func (r *BaseGormRepository[T]) ListPerPageWithCondition(page, pageSize int, condition interface{}, args ...interface{}) (*[]T, int64, error) {
 	var entity []T
-	if err := r.DB.Find(&entity).Error; err != nil {
-		return &entity, err
+	var total int64
+
+	// 构建查询
+	query := r.DB.Model(&entity)
+	if condition != nil {
+		query = query.Where(condition, args...)
 	}
-	return &entity, nil
+
+	// 统计总数
+	if err := query.Count(&total).Error; err != nil {
+		return &entity, 0, err
+	}
+
+	// 分页查询
+	if err := query.Offset((page - 1) * pageSize).Limit(pageSize).Find(&entity).Error; err != nil {
+		return &entity, 0, err
+	}
+
+	return &entity, total, nil
+}
+
+// List 列出全部MySQL记录
+func (r *BaseGormRepository[T]) List() ([]T, error) {
+	var entities []T
+	if err := r.DB.Find(&entities).Error; err != nil {
+		return nil, err
+	}
+	return entities, nil
+}
+
+// Count 统计记录总数
+func (r *BaseGormRepository[T]) Count() (int64, error) {
+	var entity T
+	var count int64
+	if err := r.DB.Model(&entity).Count(&count).Error; err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+// CountByCondition 根据条件统计记录数
+func (r *BaseGormRepository[T]) CountByCondition(condition interface{}, args ...interface{}) (int64, error) {
+	var entity T
+	var count int64
+	if err := r.DB.Model(&entity).Where(condition, args...).Count(&count).Error; err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+// Exists 检查记录是否存在
+func (r *BaseGormRepository[T]) Exists(id uint) (bool, error) {
+	var entity T
+	var count int64
+	if err := r.DB.Model(&entity).Where("id = ?", id).Count(&count).Error; err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+// ExistsByCondition 根据条件检查记录是否存在
+func (r *BaseGormRepository[T]) ExistsByCondition(condition interface{}, args ...interface{}) (bool, error) {
+	var entity T
+	var count int64
+	if err := r.DB.Model(&entity).Where(condition, args...).Count(&count).Error; err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }

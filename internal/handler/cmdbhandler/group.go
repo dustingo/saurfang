@@ -4,6 +4,7 @@ import (
 	"saurfang/internal/models/amis"
 	"saurfang/internal/models/gamegroup"
 	"saurfang/internal/repository/base"
+	"saurfang/internal/tools/pkg"
 	"strconv"
 	"strings"
 
@@ -25,17 +26,20 @@ func (g *GroupHandler) Handler_CreateNewGroup(c fiber.Ctx) error {
 	if err := c.Bind().Body(&group); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  1,
-			"message": err.Error(),
+			"err":     err.Error(),
+			"message": "request error",
 		})
 	}
 	if err := g.Create(&group); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  1,
-			"message": err.Error(),
+			"err":     err.Error(),
+			"message": "failed to create new group",
 		})
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  0,
+		"err":     "",
 		"message": "create success",
 	})
 }
@@ -46,11 +50,13 @@ func (g *GroupHandler) Handler_ListGroups(c fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  1,
-			"message": err.Error(),
+			"err":     err.Error(),
+			"message": "failed to list groups",
 		})
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  0,
+		"err":     "",
 		"message": "success",
 		"data":    groups,
 	})
@@ -63,20 +69,21 @@ func (g *GroupHandler) Handler_UpdateGroup(c fiber.Ctx) error {
 	if err := c.Bind().Body(&group); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  1,
-			"message": "请求错误",
 			"err":     err.Error(),
+			"message": "request error",
 		})
 	}
 	group.ID = uint(id)
 	if err := g.Update(group.ID, &group); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  1,
-			"message": "update failed",
 			"err":     err.Error(),
+			"message": "update failed",
 		})
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  0,
+		"err":     "",
 		"message": "upate success",
 	})
 }
@@ -87,12 +94,13 @@ func (g *GroupHandler) Handler_DeleteGroup(c fiber.Ctx) error {
 	if err := g.Delete(uint(id)); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  1,
-			"message": "delete failed",
 			"err":     err.Error(),
+			"message": "delete failed",
 		})
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  0,
+		"err":     "",
 		"message": "delete success",
 	})
 }
@@ -108,12 +116,13 @@ func (g *GroupHandler) Handler_BatchDeleteGroups(c fiber.Ctx) error {
 	if err := g.BatchDelete(ids); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  1,
-			"message": "delete failed",
 			"err":     err.Error(),
+			"message": "delete failed",
 		})
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  0,
+		"err":     "",
 		"message": "delete success",
 	})
 }
@@ -123,21 +132,13 @@ func (g *GroupHandler) Handler_GroupIdToName(c fiber.Ctx) error {
 	var gps map[string]interface{} = make(map[string]interface{})
 	groups, err := g.List()
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  1,
-			"message": "show groups failed",
-			"err":     err.Error(),
-		})
+		return pkg.NewAppResponse(c, fiber.StatusInternalServerError, 1, "show groups failed", err.Error(), fiber.Map{})
 	}
-	for _, group := range *groups {
+	for _, group := range groups {
 		gps[strconv.Itoa(int(group.ID))] = group.Name
 	}
 	gps["*"] = "未分配"
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":  0,
-		"message": "id to name success",
-		"data":    gps,
-	})
+	return pkg.NewAppResponse(c, fiber.StatusOK, 0, "id to name success", "", gps)
 }
 
 // Handler_SelectGroupForHost 新增主机记录时,用于选择主机归属
@@ -146,21 +147,14 @@ func (g *GroupHandler) Handler_SelectGroupForHost(c fiber.Ctx) error {
 	var amisOptions []amis.AmisOptions
 	groups, err := g.List()
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  1,
-			"message": "show groups failed",
-			"err":     err.Error(),
-		})
+		return pkg.NewAppResponse(c, fiber.StatusInternalServerError, 1, "show groups failed", err.Error(), fiber.Map{})
 	}
-	for _, group := range *groups {
+	for _, group := range groups {
 		amisOption.Label = group.Name
 		amisOption.Value = int(group.ID)
 		amisOptions = append(amisOptions, amisOption)
 	}
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status": 0,
-		"data": fiber.Map{
-			"options": amisOptions,
-		},
+	return pkg.NewAppResponse(c, fiber.StatusOK, 0, "success", "", fiber.Map{
+		"options": amisOptions,
 	})
 }

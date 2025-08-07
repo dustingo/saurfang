@@ -1,11 +1,12 @@
 package route
 
 import (
-	"github.com/gofiber/fiber/v3"
 	"saurfang/internal/config"
 	"saurfang/internal/handler/userhandler"
 	"saurfang/internal/models/user"
 	"saurfang/internal/repository/base"
+
+	"github.com/gofiber/fiber/v3"
 )
 
 type UserRouteModule struct {
@@ -14,8 +15,6 @@ type UserRouteModule struct {
 }
 
 func (u *UserRouteModule) Info() (namespace string, comment string) {
-	namespace = u.Namespace
-	comment = u.Comment
 	return u.Namespace, u.Comment
 }
 func (u *UserRouteModule) RegisterRoutesModule(r *fiber.App) {
@@ -25,7 +24,7 @@ func (u *UserRouteModule) RegisterRoutesModule(r *fiber.App) {
 	*/
 	//userService := userservice.NewUserService(config.DB)
 	//userHandler := userhandler.NewUserHandler(userService)
-	userHandler := userhandler.UserHandler{base.BaseGormRepository[user.User]{DB: config.DB}}
+	userHandler := userhandler.UserHandler{BaseGormRepository: base.BaseGormRepository[user.User]{DB: config.DB}}
 	userRoute.Post("/role/create", userHandler.Handler_CreateRole)
 	userRoute.Delete("/role/delete/:id", userHandler.Handler_DeleteRole)
 	userRoute.Get("/userinfo", userHandler.Handler_ShowUserInfoByRole)

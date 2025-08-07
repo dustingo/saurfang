@@ -2,7 +2,6 @@ package taskhandler
 
 import (
 	"fmt"
-	"github.com/gofiber/fiber/v3"
 	"io"
 	"os"
 	"path"
@@ -11,26 +10,22 @@ import (
 	"saurfang/internal/models/upload"
 	"saurfang/internal/repository/base"
 	"saurfang/internal/tools"
+	"saurfang/internal/tools/pkg"
 	"strconv"
 	"time"
+
+	"github.com/gofiber/fiber/v3"
 )
 
 type UploadHandler struct {
 	base.BaseGormRepository[upload.UploadRecord]
-	//taskservice.UploadService
 }
 
-//	func NewUploadHandler(svc *taskservice.UploadService) *UploadHandler {
-//		return &UploadHandler{*svc}
-//	}
 func (u *UploadHandler) Handler_ShowServerPackage(c fiber.Ctx) error {
 	var files []upload.FileInfo
 	entries, err := os.ReadDir(os.Getenv("SERVER_PACKAGE_SRC_PATH"))
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  1,
-			"message": err.Error(),
-		})
+		return pkg.NewAppResponse(c, fiber.StatusBadRequest, 1, "read dir error", err.Error(), fiber.Map{})
 	}
 	for _, entry := range entries {
 		info, err := entry.Info()
@@ -46,11 +41,7 @@ func (u *UploadHandler) Handler_ShowServerPackage(c fiber.Ctx) error {
 			ModifiedTime: info.ModTime(),
 		})
 	}
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":  0,
-		"message": "success",
-		"data":    files,
-	})
+	return pkg.NewAppResponse(c, fiber.StatusOK, 0, "success", "", files)
 }
 func (u *UploadHandler) Handler_UploadServerPackage(c fiber.Ctx) error {
 	c.Set("Content-Type", "text/event-stream")
@@ -120,20 +111,10 @@ func (u *UploadHandler) Handler_ShowUploadRecords(c fiber.Ctx) error {
 	var records []upload.UploadRecord
 	var total int64
 	if err := config.DB.Model(&records).Count(&total).Error; err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  1,
-			"message": err.Error(),
-		})
+		return pkg.NewAppResponse(c, fiber.StatusInternalServerError, 1, "fail to count records", err.Error(), fiber.Map{})
 	}
 	if err := config.DB.Order("id DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&records).Error; err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  1,
-			"message": err.Error(),
-		})
+		return pkg.NewAppResponse(c, fiber.StatusInternalServerError, 1, "fail to find records", err.Error(), fiber.Map{})
 	}
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":  0,
-		"message": "success",
-		"data":    records,
-	})
+	return pkg.NewAppResponse(c, fiber.StatusOK, 0, "success", "", records)
 }

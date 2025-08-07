@@ -19,10 +19,7 @@ type Hosts struct {
 	CPU          string            `gorm:"type:text;comment:CPU" json:"cpu"`
 	Memory       string            `gorm:"type:text;comment:内存" json:"memory"`
 	OsName       string            `gorm:"type:text;comment:系统" json:"os_name"`
-	Disk         string            `gorm:"type:text;comment:硬盘" json:"disk"`
-	User         string            `gorm:"type:text;comment:用户" json:"user"`
 	Port         int               `gorm:"default:null" json:"port"`
-	// IsActive     int               `gorm:"default:0;comment:连通性" json:"is_active"`
 	Labels       string            `gorm:"type:text;comment:标签" json:"labels"`
 	GroupID      *uint             `gorm:"comment:组ID" json:"group_id,omitempty"`
 	Group        *gamegroup.Groups `gorm:"foreignKey:GroupID" json:"group,omitempty"` // 外键关系

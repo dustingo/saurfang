@@ -3,12 +3,13 @@ package pkg
 import (
 	"context"
 	"fmt"
-	"github.com/apenella/go-ansible/v2/pkg/adhoc"
-	"golang.org/x/sync/semaphore"
-	"gorm.io/gorm"
 	"log"
 	"saurfang/internal/models/gamehost"
 	"time"
+
+	"github.com/apenella/go-ansible/v2/pkg/adhoc"
+	"golang.org/x/sync/semaphore"
+	"gorm.io/gorm"
 )
 
 const (
@@ -40,40 +41,36 @@ func CheckActiveInterval(db *gorm.DB) {
 	ctx := context.Background()
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
-	for {
-		select {
-		case <-ticker.C:
-			const maxConcurrency = 2
-			sem := semaphore.NewWeighted(int64(maxConcurrency))
-			// 获取主机列表
-			var hosts []gamehost.Hosts
-			if err := db.Select("id", "hostname", "public_ip", "private_ip", "port").Find(&hosts).Error; err != nil {
-				log.Println("db error: ", err)
+
+	for range ticker.C {
+		const maxConcurrency = 2
+		sem := semaphore.NewWeighted(int64(maxConcurrency))
+		// 获取主机列表
+		var hosts []gamehost.Hosts
+		if err := db.Select("id", "hostname", "public_ip", "private_ip", "port").Find(&hosts).Error; err != nil {
+			log.Println("db error: ", err)
+			continue
+		}
+		for _, host := range hosts {
+			if err := sem.Acquire(ctx, 1); err != nil {
+				log.Println("acquire semaphore error: ", err)
 				continue
 			}
-			for _, host := range hosts {
-				if err := sem.Acquire(ctx, 1); err != nil {
-					log.Println("acquire semaphore error: ", err)
-					continue
+			go func(host gamehost.Hosts) {
+				defer sem.Release(1)
+				active, err := checkActive(host.PublicIP, host.PrivateIP, host.Port)
+				if err != nil {
+					log.Println("checkActive error:", err)
+					db.Model(&gamehost.Hosts{}).Where("id = ?", host.ID).Update("is_active", Offline)
+					return
 				}
-				go func(host gamehost.Hosts) {
-					defer sem.Release(1)
-					active, err := checkActive(host.PublicIP, host.PrivateIP, host.Port)
-					if err != nil {
-						log.Println("checkActive error:", err)
-						db.Model(&gamehost.Hosts{}).Where("id = ?", host.ID).Update("is_active", Offline)
-						return
-					}
-					if !active {
-						log.Println("Host not alive:", host.Hostname, host.PublicIP, host.PrivateIP)
-						db.Model(&gamehost.Hosts{}).Where("id = ?", host.ID).Update("is_active", Offline)
-					} else {
-						db.Model(&gamehost.Hosts{}).Where("id = ?", host.ID).Update("is_active", Active)
-					}
-				}(host)
-			}
-
+				if !active {
+					log.Println("Host not alive:", host.Hostname, host.PublicIP, host.PrivateIP)
+					db.Model(&gamehost.Hosts{}).Where("id = ?", host.ID).Update("is_active", Offline)
+				} else {
+					db.Model(&gamehost.Hosts{}).Where("id = ?", host.ID).Update("is_active", Active)
+				}
+			}(host)
 		}
 	}
-
 }

@@ -1,13 +1,14 @@
 package route
 
 import (
-	"github.com/gofiber/fiber/v3"
 	"os"
 	"saurfang/internal/config"
 	"saurfang/internal/handler/gamehandler"
 	"saurfang/internal/models/gamechannel"
 	"saurfang/internal/models/gameserver"
 	"saurfang/internal/repository/base"
+
+	"github.com/gofiber/fiber/v3"
 )
 
 type GameRouteModule struct {
@@ -16,8 +17,6 @@ type GameRouteModule struct {
 }
 
 func (g *GameRouteModule) Info() (namespace string, comment string) {
-	namespace = g.Namespace
-	comment = g.Comment
 	return g.Namespace, g.Comment
 }
 
@@ -26,9 +25,7 @@ func (g *GameRouteModule) RegisterRoutesModule(r *fiber.App) {
 	/*
 		渠道
 	*/
-	//channelService := gameservice.NewChannelService(config.DB)
-	//channelHandler := gamehandler.NewHostHandler(channelService)
-	channelHandler := gamehandler.ChannelHandler{base.BaseGormRepository[gamechannel.Channels]{DB: config.DB}}
+	channelHandler := gamehandler.ChannelHandler{BaseGormRepository: base.BaseGormRepository[gamechannel.Channels]{DB: config.DB}}
 	gameRouter.Post("/channel/create", channelHandler.Handler_CreateChannel)
 	gameRouter.Delete("/channel/delete/:id", channelHandler.Handler_DeleteChannel)
 	gameRouter.Put("/channel/update/:id", channelHandler.Handler_UpdateChannel)
@@ -38,42 +35,31 @@ func (g *GameRouteModule) RegisterRoutesModule(r *fiber.App) {
 	/*
 		逻辑服
 	*/
-	//logicservice := gameservice.NewLogicServerService(config.DB, config.Etcd)
-	//logicHandler := gamehandler.NewLogicServerHandler(logicservice)
-	nomadcli, _ := config.NewNomadClient()
+	// nomadcli, _ := config.NewNomadClient()
 	logicHandler := gamehandler.LogicServerHandler{
 		BaseGormRepository: base.BaseGormRepository[gameserver.Games]{DB: config.DB},
-		NomadJobRepository: base.NomadJobRepository{
-			Consul: config.ConsulCli,
-			Ns:     os.Getenv("GAME_CONFIG_NAMESPACE"),
-			Nomad:  nomadcli,
-		}}
+		// NomadJobRepository: base.NomadJobRepository{
+		// 	Consul: config.ConsulCli,
+		// 	// Ns:     os.Getenv("GAME_CONFIG_NAMESPACE"),
+		// 	Nomad: nomadcli,
+		// },
+	}
 	// 创建游戏服
 	gameRouter.Post("/logic/create", logicHandler.Handler_CreateLogicServer)
 	gameRouter.Delete("/logic/delete", logicHandler.Handler_DeleteLogicServer)
-	gameRouter.Delete("/logic/hosts/delete", logicHandler.Handler_DeleteHostFromLogicServer)
+	// gameRouter.Delete("/logic/hosts/delete", logicHandler.Handler_DeleteHostFromLogicServer)
 	gameRouter.Put("/logic/update/:id", logicHandler.Handler_UpdateLogicServer)
 	gameRouter.Get("/logic/list", logicHandler.Handler_ShowLogicServer)
 	//
 	gameRouter.Get("/logic/select", logicHandler.Handler_ShowChannelServerList)
-	gameRouter.Get("/logic/detail", logicHandler.Handler_ShowServerDetail)
+	// gameRouter.Get("/logic/detail", logicHandler.Handler_ShowServerDetail)
 	//gameRouter.Get("/logic/detail/select", logicHandler.Handler_ShowGameserverByTree)
 	gameRouter.Get("/logic/detail/picker", logicHandler.Handler_ShowServerDetailForPicker)
-	gameRouter.Put("/logic/hosts/assign", logicHandler.Handler_AddHostsToLogicServer)
+	// gameRouter.Put("/logic/hosts/assign", logicHandler.Handler_AddHostsToLogicServer)
 	gameRouter.Get("/logic/config/select", logicHandler.Handler_TreeSelectForSyncServerConfig)
-	// 显示游戏服进程列表
-	//gameRouter.Get("/logic/process/list", logicHandler.Handler_ShowGameProcesses)
-	// 开启进程
-	//gameRouter.Put("/logic/start", logicHandler.Handler_ExecGameops)
-	// 关闭进程
-	//gameRouter.Put("/logic/stop", logicHandler.Handler_ExecGameops)
-	//gameRouter.Put("/logic/batch/start", logicHandler.Handler_Execgameops)
-	//gameRouter.Delete("/logic/batch/stop", logicHandler.Handler_Execgameops)
 	/*
 		逻辑服配置
 	*/
-	//serverconfigService := gameservice.NewServerConfigService(config.Etcd, config.ConsulCli, os.Getenv("GAME_NOMAD_JOB_NAMESPACE"))
-	//serverconfigHandler := gamehandler.NewServerConfigHandler(serverconfigService)
 	serverconfigHandler := gamehandler.NewServerConfigHandler(config.ConsulCli, os.Getenv("GAME_NOMAD_JOB_NAMESPACE"))
 	gameRouter.Post("/config/create", serverconfigHandler.Handler_CreateNomadJob)
 	gameRouter.Delete("/config/delete", serverconfigHandler.Handler_DeleteServerConfig)

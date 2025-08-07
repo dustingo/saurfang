@@ -1,11 +1,12 @@
 package route
 
 import (
-	"github.com/gofiber/fiber/v3"
 	"saurfang/internal/config"
 	"saurfang/internal/handler/userhandler"
 	"saurfang/internal/models/user"
 	"saurfang/internal/repository/base"
+
+	"github.com/gofiber/fiber/v3"
 )
 
 type CommonRouteModule struct {
@@ -14,8 +15,6 @@ type CommonRouteModule struct {
 }
 
 func (u *CommonRouteModule) Info() (namespace string, comment string) {
-	namespace = u.Namespace
-	comment = u.Comment
 	return u.Namespace, u.Comment
 }
 func (u *CommonRouteModule) RegisterRoutesModule(r *fiber.App) {
@@ -25,7 +24,7 @@ func (u *CommonRouteModule) RegisterRoutesModule(r *fiber.App) {
 	*/
 	//userService := userservice.NewUserService(config.DB)
 	//userHandler := userhandler.NewUserHandler(userService)
-	userHandler := userhandler.UserHandler{base.BaseGormRepository[user.User]{DB: config.DB}}
+	userHandler := userhandler.UserHandler{BaseGormRepository: base.BaseGormRepository[user.User]{DB: config.DB}}
 	commonRoute.Post("/auth/register", userHandler.Handler_UserRegister)
 	commonRoute.Post("/auth/login", userHandler.Handler_UserLogin)
 	commonRoute.Post("/auth/logout", userHandler.Handler_UserLogout)

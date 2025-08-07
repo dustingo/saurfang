@@ -2,14 +2,14 @@ package base
 
 import (
 	"errors"
-	"fmt"
-	consulapi "github.com/hashicorp/consul/api"
-	nomadapi "github.com/hashicorp/nomad/api"
 	"saurfang/internal/models/amis"
 	"saurfang/internal/models/serverconfig"
 	"saurfang/internal/tools"
 	"strings"
 	"time"
+
+	consulapi "github.com/hashicorp/consul/api"
+	nomadapi "github.com/hashicorp/nomad/api"
 )
 
 // NomadRepository consul操作的基础接口
@@ -27,70 +27,43 @@ type NomadJobs struct {
 	SubmitDate string       `json:"submit_date"`
 	Allocation []Allocation `json:"allocation"`
 }
+
+// Allocation 分配信息
 type Allocation struct {
 	Group  string `json:"group"`
 	Status string `json:"status"`
 }
 
+// JobStatus 作业状态常量
+const (
+	JobStatusComplete = "complete"
+	JobStatusFailed   = "failed"
+	JobStatusLost     = "lost"
+	JobStatusQueued   = "queued"
+	JobStatusRunning  = "success"
+	JobStatusStarting = "starting"
+	JobStatusUnknown  = "unknown"
+)
+
+// ShowNomadJobGroups 获取Nomad作业组列表
+// t: 作业类型过滤，空字符串表示获取所有类型
 func (n *NomadJobRepository) ShowNomadJobGroups(t string) ([]NomadJobs, error) {
+	if n.Nomad == nil {
+		return nil, errors.New("nomad client is not initialized")
+	}
 	var nomadJobs []NomadJobs
-	var nomadJob NomadJobs
+	//var nomadJob NomadJobs
 	jobs, _, err := n.Nomad.Jobs().List(&nomadapi.QueryOptions{})
 	if err != nil {
 		return nomadJobs, err
 	}
-
-	switch t {
-	case "":
-		for _, job := range jobs {
-			var allocations []Allocation
-
-			for group, state := range job.JobSummary.Summary {
-				var status string
-				if state.Running == 1 {
-					status = "success"
-				} else {
-					status = "warning"
-				}
-				allocations = append(allocations, Allocation{
-					Group:  group,
-					Status: status,
-				})
-			}
-			nomadJob.ID = job.ID
-			nomadJob.Type = job.Type
-			nomadJob.Status = job.Status
-			nomadJob.SubmitDate = time.Unix(job.SubmitTime/1e9, job.SubmitTime%1e9).Local().Format("2006-01-02 15:04:05")
-			nomadJob.Allocation = allocations
-			nomadJobs = append(nomadJobs, nomadJob)
+	for _, job := range jobs {
+		if t != "" && job.Type != t {
+			continue
 		}
-	default:
-		for _, job := range jobs {
-			if job.Type != t {
-				continue
-			}
-			var allocations []Allocation
-			for group, state := range job.JobSummary.Summary {
-				var status string
-				if state.Running == 1 {
-					status = "success"
-				} else {
-					status = "warning"
-				}
-				allocations = append(allocations, Allocation{
-					Group:  group,
-					Status: status,
-				})
-			}
-			nomadJob.ID = job.ID
-			nomadJob.Type = job.Type
-			nomadJob.Status = job.Status
-			nomadJob.SubmitDate = time.Unix(job.SubmitTime/1e9, job.SubmitTime%1e9).Local().Format("2006-01-02 15:04:05")
-			nomadJob.Allocation = allocations
-			nomadJobs = append(nomadJobs, nomadJob)
-		}
+		nomadJob := n.convertJobToNomadJobs(job)
+		nomadJobs = append(nomadJobs, nomadJob)
 	}
-
 	return nomadJobs, nil
 }
 
@@ -112,7 +85,7 @@ func (n *NomadJobRepository) ScaleTaskGroup(jobID, target string, ops string) (s
 	// go func(){//save to redis}()
 	// 如果通知的是不可信的nomad，需要慎重
 	if !resp.KnownLeader {
-		return resp.EvalID, fmt.Errorf("The system cannot confirm whether a Nomad leader currently exists. Please verify the cluster status in detail")
+		return resp.EvalID, errors.New("the system cannot confirm whether a Nomad leader currently exists. Please verify the cluster status in detail")
 	}
 	return resp.EvalID, nil
 }
@@ -123,7 +96,7 @@ func (n *NomadJobRepository) ShowGroupsForSelect(jobID string) (*[]amis.AmisOpti
 	}
 	var amisOption amis.AmisOptionsGeneric[string]
 	var amisOptions []amis.AmisOptionsGeneric[string]
-	for g, _ := range jobSummary.Summary {
+	for g := range jobSummary.Summary {
 		amisOption.Label = g
 		amisOption.Value = g
 		amisOptions = append(amisOptions, amisOption)
@@ -188,8 +161,38 @@ func (n *NomadJobRepository) ShowNomadJobByKey(key string) (*serverconfig.GameCo
 	if pair == nil {
 		return nil, nil
 	}
-	var result *serverconfig.GameConfig
-	result.Key = pair.Key
-	result.Setting = strings.ReplaceAll(string(pair.Value), "\r", "")
+	result := &serverconfig.GameConfig{
+		Key:     pair.Key,
+		Setting: strings.ReplaceAll(string(pair.Value), "\r", ""),
+	}
 	return result, nil
+}
+
+// convertJobToNomadJobs 将Nomad作业转换为内部结构
+func (n *NomadJobRepository) convertJobToNomadJobs(job *nomadapi.JobListStub) NomadJobs {
+	var allocations []Allocation
+	for group, state := range job.JobSummary.Summary {
+		status := JobStatusUnknown
+		if state.Running == 1 {
+			status = JobStatusRunning
+		} else if state.Failed == 1 {
+			status = JobStatusFailed
+		} else if state.Complete == 1 {
+			status = JobStatusComplete
+		} else if state.Queued == 1 {
+			status = JobStatusQueued
+		}
+		allocations = append(allocations, Allocation{
+			Group:  group,
+			Status: status, //返回前端的颜色
+		})
+	}
+
+	return NomadJobs{
+		ID:         job.ID,
+		Type:       job.Type,
+		Status:     job.Status,
+		SubmitDate: time.Unix(job.SubmitTime/1e9, job.SubmitTime%1e9).Local().Format("2006-01-02 15:04:05"),
+		Allocation: allocations,
+	}
 }

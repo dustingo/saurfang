@@ -2,7 +2,6 @@ package cmdbhandler
 
 import (
 	"fmt"
-	"github.com/gofiber/fiber/v3"
 	"saurfang/internal/config"
 	"saurfang/internal/models/amis"
 	"saurfang/internal/models/autosync"
@@ -12,147 +11,107 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gofiber/fiber/v3"
 )
 
 type AutoSyncHandler struct {
 	base.BaseGormRepository[autosync.AutoSync]
-	//cmdbservice.AutoSyncService
 }
 
-//func NewAutoSyncHandler(svc *cmdbservice.AutoSyncService) *AutoSyncHandler {
-//	return &AutoSyncHandler{*svc}
-//}
-
 // Handler_CreateAutoSyncConfig handler_CreateAutoSyncConfig 创建自动同步配置
+// tested
 func (a *AutoSyncHandler) Handler_CreateAutoSyncConfig(c fiber.Ctx) error {
 	var config autosync.AutoSync
 	if err := c.Bind().Body(&config); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status": 1,
-			"msg":    err.Error(),
-		})
+		return pkg.NewAppResponse(c, fiber.StatusBadRequest, 1, "failed to create auto sync config", err.Error(), fiber.Map{})
 	}
 	if err := a.Create(&config); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status": 1,
-			"msg":    err.Error(),
-		})
+		return pkg.NewAppResponse(c, fiber.StatusInternalServerError, 1, "failed to create auto sync config", err.Error(), fiber.Map{})
 	}
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":  0,
-		"message": "success",
-	})
+	return pkg.NewAppResponse(c, fiber.StatusOK, 0, "success", "", fiber.Map{})
 }
 
+// Handler_ShowAutoSyncConfig handler_ShowAutoSyncConfig 展示自动同步配置
+// tested
 func (a *AutoSyncHandler) Handler_ShowAutoSyncConfig(c fiber.Ctx) error {
 	configs, err := a.List()
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status": 1,
-			"msg":    err.Error(),
-		})
+		return pkg.NewAppResponse(c, fiber.StatusInternalServerError, 1, "failed to show auto sync config", err.Error(), fiber.Map{})
 	}
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":  0,
-		"message": "success",
-		"data":    configs,
+	return pkg.NewAppResponse(c, fiber.StatusOK, 0, "success", "", fiber.Map{
+		"data": configs,
 	})
 }
 
+// Handler_UpdateAutoSyncConfig handler_UpdateAutoSyncConfig 更新自动同步配置
+// tested
 func (a *AutoSyncHandler) Handler_UpdateAutoSyncConfig(c fiber.Ctx) error {
 	id, _ := strconv.Atoi(c.Params("id"))
 	var syncConfig autosync.AutoSync
 	if err := c.Bind().Body(&syncConfig); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status": 1,
-			"msg":    err.Error(),
-		})
+		return pkg.NewAppResponse(c, fiber.StatusBadRequest, 1, "failed to update auto sync config", err.Error(), fiber.Map{})
 	}
-	syncConfig.ID = uint(id)
+	if uint(id) != syncConfig.ID {
+		return pkg.NewAppResponse(c, fiber.StatusBadRequest, 1, "failed to update auto sync config", "id is the same as the sync config", fiber.Map{})
+	}
 	if err := a.UpdateALL(&syncConfig); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status": 1,
-			"msg":    err.Error(),
-		})
+		return pkg.NewAppResponse(c, fiber.StatusInternalServerError, 1, "failed to update auto sync config", err.Error(), fiber.Map{})
 	}
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":  0,
-		"message": "success",
-	})
+	return pkg.NewAppResponse(c, fiber.StatusOK, 0, "success", "", fiber.Map{})
 }
 
+// Handler_DeleteAutoSyncConfig handler_DeleteAutoSyncConfig 删除自动同步配置
+// tested
 func (a *AutoSyncHandler) Handler_DeleteAutoSyncConfig(c fiber.Ctx) error {
 	id, _ := strconv.Atoi(c.Params("id"))
 	if err := a.Delete(uint(id)); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status": 1,
-			"msg":    err.Error(),
-		})
+		return pkg.NewAppResponse(c, fiber.StatusInternalServerError, 1, "failed to delete auto sync config", err.Error(), fiber.Map{})
 	}
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":  0,
-		"message": "success",
-	})
+	return pkg.NewAppResponse(c, fiber.StatusOK, 0, "success", "", nil)
 }
+
+// Handler_AutoSync handler_AutoSync 自动同步
 func (a *AutoSyncHandler) Handler_AutoSync(c fiber.Ctx) error {
 	var target = struct {
 		Target string `json:"target"`
 	}{}
 	if err := c.Bind().Body(&target); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status": 1,
-			"msg":    err.Error(),
-		})
+		return pkg.NewAppResponse(c, fiber.StatusBadRequest, 1, "failed to auto sync", err.Error(), fiber.Map{})
 	}
 	targetLabel := strings.Split(target.Target, "-")
 	if len(targetLabel) < 2 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status": 1,
-			"msg":    target.Target + " is invalid",
-		})
+		return pkg.NewAppResponse(c, fiber.StatusBadRequest, 1, "failed to auto sync", target.Target+" is invalid", fiber.Map{})
 	}
 	if targetLabel[0] == "阿里云" {
 		if err := a.AutoSyncAliYunEcs(targetLabel[1]); err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"status": 1,
-				"msg":    err.Error(),
-			})
+			return pkg.NewAppResponse(c, fiber.StatusInternalServerError, 1, "failed to auto sync", err.Error(), fiber.Map{})
 		}
 	} else {
 		if err := a.AutoSyncHuaweiECS(targetLabel[1]); err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"status": 1,
-				"msg":    err.Error(),
-			})
+			return pkg.NewAppResponse(c, fiber.StatusInternalServerError, 1, "failed to auto sync", err.Error(), fiber.Map{})
 		}
 	}
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":  0,
-		"message": "success",
-	})
+	return pkg.NewAppResponse(c, fiber.StatusOK, 0, "success", "", nil)
 }
+
+// Handler_AutoSyncConfigSelect handler_AutoSyncConfigSelect 自动同步配置选择
+// tested
 func (a *AutoSyncHandler) Handler_AutoSyncConfigSelect(c fiber.Ctx) error {
 	configs, err := a.List()
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status": 1,
-			"msg":    err.Error(),
-		})
+		return pkg.NewAppResponse(c, fiber.StatusInternalServerError, 1, "failed to auto sync config select", err.Error(), fiber.Map{})
 	}
 	var op amis.AmisOptionsString
 	var ops []amis.AmisOptionsString
-	for _, sn := range *configs {
+	for _, sn := range configs {
 		op.Label = sn.Label
 		op.SelectMode = "tree"
 		op.Value = sn.Cloud + "-" + sn.Label
 		ops = append(ops, op)
 	}
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":  0,
-		"message": "success",
-		"data": fiber.Map{
-			"options": ops,
-		},
+	return pkg.NewAppResponse(c, fiber.StatusOK, 0, "success", "", fiber.Map{
+		"options": ops,
 	})
 }
 func (a *AutoSyncHandler) AutoSyncAliYunEcs(target string) error {
@@ -248,12 +207,12 @@ func (a *AutoSyncHandler) AutoSyncHuaweiECS(target string) error {
 	for _, cloudServer := range *cloudServers {
 		for _, server := range cloudServer.Servers {
 			for _, ips := range server.Addresses[server.MetaData.VpcID] {
-				if ips.OSEXTIPStype == "fixed" {
+				switch ips.OSEXTIPStype {
+				case "fixed":
 					private_ip = ips.Addr
-				} else if ips.OSEXTIPStype == "floating" {
+				default:
 					public_ip = ips.Addr
 				}
-				fmt.Println("Private IP: ", private_ip, ", Public IP: ", public_ip)
 			}
 			if hashstring, ok := localServerMap[server.Id]; ok {
 				if pkg.Hash(fmt.Sprintf("%s-%s-%s-%s-%s-%s", server.Id, strconv.Itoa(server.Flavor.Vcpus), strconv.Itoa(server.Flavor.Ram), private_ip, public_ip, server.Name)) != hashstring {

@@ -4,12 +4,13 @@ package config
 import (
 	"context"
 	"errors"
-	"github.com/redis/go-redis/v9"
-	"log"
+	"log/slog"
 	"os"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/redis/go-redis/v9"
 )
 
 var CahceClient *redis.Client
@@ -63,10 +64,10 @@ func (m *RedisManager) connect() {
 	m.client = redis.NewClient(m.config)
 	if err := m.client.Ping(m.ctx).Err(); err != nil {
 		m.isConnected = false
-		log.Printf("Redis connection failed: %v", err)
+		slog.Error("Redis connection failed", "error", err)
 	} else {
 		m.isConnected = true
-		log.Println("Connected to Redis successfully")
+		slog.Info("Connected to Redis successfully")
 	}
 }
 
@@ -86,11 +87,11 @@ func (m *RedisManager) healthCheck() {
 
 			if err := m.client.Ping(m.ctx).Err(); err != nil {
 				m.isConnected = false
-				log.Printf("Redis connection lost, attempting to reconnect...")
+				slog.Error("Redis connection lost, attempting to reconnect...")
 				m.connect()
 			} else if !m.isConnected {
 				m.isConnected = true
-				log.Println("Redis connection restored")
+				slog.Info("Redis connection restored")
 			}
 			m.mu.Unlock()
 		case <-m.stopChan:
@@ -105,9 +106,8 @@ func (m *RedisManager) GetClient() (*redis.Client, error) {
 	defer m.mu.Unlock()
 
 	if !m.isConnected || m.client == nil {
-		return nil, errors.New("Redis is not connected")
+		return nil, errors.New("redis is not connected")
 	}
-
 	return m.client, nil
 }
 
@@ -125,12 +125,14 @@ func (m *RedisManager) Close() error {
 func InitCache() *redis.Client {
 	db, err := strconv.Atoi(os.Getenv("REDIS_CACHE_DB"))
 	if err != nil {
-		log.Fatalln("Redis cache db parse error:", err)
+		slog.Error("Redis cache db parse error:", "error", err)
+		os.Exit(-1)
 	}
 	cacheMgr := NewRedisManager(os.Getenv("REDIS_HOST"), os.Getenv("REDIS_PASSWORD"), db)
 	CahceClient, err = cacheMgr.GetClient()
 	if err != nil {
-		log.Fatalln("Redis cache init error:", err)
+		slog.Error("Redis cache init error:", "error", err)
+		os.Exit(-1)
 	}
 	return CahceClient
 }

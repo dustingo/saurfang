@@ -4,6 +4,34 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"log"
+	"log/slog"
+	"net/http"
+	_ "net/http/pprof"
+	"os"
+	"os/signal"
+	"saurfang/internal/config"
+	"saurfang/internal/handler/taskhandler"
+	"saurfang/internal/middleware"
+	"saurfang/internal/models/autosync"
+	"saurfang/internal/models/credential"
+	"saurfang/internal/models/dashboard"
+	"saurfang/internal/models/datasource"
+	"saurfang/internal/models/gamechannel"
+	"saurfang/internal/models/gamegroup"
+	"saurfang/internal/models/gamehost"
+	"saurfang/internal/models/gameserver"
+	"saurfang/internal/models/task"
+	"saurfang/internal/models/upload"
+	"saurfang/internal/models/user"
+	"saurfang/internal/route"
+	"saurfang/internal/tools"
+	"saurfang/internal/tools/pkg"
+	"strings"
+	"syscall"
+
+	_ "go.uber.org/automaxprocs"
+
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/gofiber/fiber/v3/middleware/limiter"
@@ -14,27 +42,6 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 	"gorm.io/gorm"
-	"log"
-	"os"
-	"os/signal"
-	"saurfang/internal/config"
-	"saurfang/internal/middleware"
-	"saurfang/internal/models/autosync"
-	"saurfang/internal/models/credential"
-	"saurfang/internal/models/dashboard"
-	"saurfang/internal/models/datasource"
-	"saurfang/internal/models/gamechannel"
-	"saurfang/internal/models/gamegroup"
-	"saurfang/internal/models/gamehost"
-	"saurfang/internal/models/gameserver"
-	"saurfang/internal/models/task.go"
-	"saurfang/internal/models/upload"
-	"saurfang/internal/models/user"
-	"saurfang/internal/route"
-	"saurfang/internal/tools"
-	"saurfang/internal/tools/pkg"
-	"strings"
-	"syscall"
 )
 
 var (
@@ -59,6 +66,9 @@ func main() {
 				BuildGoVersion, BuildVersion, BuildTime)
 		},
 		Run: func(cmd *cobra.Command, args []string) {
+			go func() {
+				slog.Info("pprof server started on port 30552", "error", http.ListenAndServe(":30552", nil)) // 表示启动端口为 30552 的 pprof 服务
+			}()
 			err := godotenv.Load(".env")
 			if err != nil {
 				log.Fatalln("无法加载.env文件:", err)
@@ -67,21 +77,43 @@ func main() {
 			if err := tools.PathInit([]string{os.Getenv("SERVER_PACKAGE_SRC_PATH"), os.Getenv("SERVER_PACKAGE_DEST_PATH")}); err != nil {
 				log.Fatalln("Init uploadpath dir failed:", err.Error())
 			}
+
+			//MySQL
 			config.InitMySQL()
-			config.InitEtcd()
+			//config.InitEtcd()
+			// Asynq
 			config.InitSynq()
+			// Redis
 			config.InitCache()
+			//Consul
 			config.InitConsul()
 			if serve {
+				// 获取信任代理配置
+				trustProxyStr := os.Getenv("APP_TRUST_PROXY")
+				var trustProxyConfig fiber.TrustProxyConfig
+
+				if trustProxyStr != "" {
+					// 如果设置了环境变量，使用指定的代理
+					trustProxyConfig = fiber.TrustProxyConfig{
+						Proxies: strings.Split(trustProxyStr, ","),
+					}
+				} else {
+					// 如果没有设置，信任所有代理（适用于开发环境）
+					trustProxyConfig = fiber.TrustProxyConfig{
+						Proxies: []string{"0.0.0.0/0", "::/0"},
+					}
+				}
 				app := fiber.New(fiber.Config{
-					TrustProxy:  true,
-					ProxyHeader: fiber.HeaderXForwardedFor,
-					TrustProxyConfig: fiber.TrustProxyConfig{
-						Proxies: strings.Split(os.Getenv("APP_TRUST_PROXY"), ","),
-					},
+					TrustProxy:       true,
+					ProxyHeader:      fiber.HeaderXForwardedFor,
+					TrustProxyConfig: trustProxyConfig,
 				})
+				// 跨域
 				app.Use(cors.New())
+
+				// 恢复
 				app.Use(recoverer.New())
+				// 限流
 				app.Use(limiter.New(limiter.Config{
 					Max: 200,
 					LimitReached: func(ctx fiber.Ctx) error {
@@ -89,8 +121,11 @@ func main() {
 						return ctx.Send([]byte(toofast))
 					},
 				}))
+				// 请求ID
 				app.Use(requestid.New())
+				// 用户认证
 				app.Use(middleware.UserAuth())
+				// 日志
 				app.Use(logger.New(logger.Config{
 					CustomTags: map[string]logger.LogFunc{
 						"requestid": func(output logger.Buffer, c fiber.Ctx, data *logger.Data, extraParam string) (int, error) {
@@ -99,10 +134,19 @@ func main() {
 						"user": func(output logger.Buffer, c fiber.Ctx, data *logger.Data, extraParam string) (int, error) {
 							return output.WriteString(c.Get("X-Request-User"))
 						},
-					},
-					Format: "${time} ${user} ${requestid} ${ip} ${status} - ${latency} ${method} ${path} ${error}\n",
-				}))
 
+						"query_string": func(output logger.Buffer, c fiber.Ctx, data *logger.Data, extraParam string) (int, error) {
+							// 只获取查询参数字符串
+							queryString := string(c.Request().URI().QueryString())
+							if queryString != "" {
+								return output.WriteString("?" + queryString)
+							}
+							return 0, nil
+						},
+					},
+					Format: "${time} ${user} ${requestid} ${ip} ${status} - ${latency} ${method} ${path}${query_string} ${error}\n",
+				}))
+				// 路由
 				for _, module := range route.RoutesModules {
 					module.RegisterRoutesModule(app)
 					namespace, comment := module.Info()
@@ -116,8 +160,11 @@ func main() {
 				}
 				// 加载权限到缓存
 				pkg.WarmUpCache()
-				//go pkg.TaskManagerSetup()
+				// 启动计划任务管理器
+				go pkg.TaskManagerSetup()
+				// 启动定时检查活跃间隔
 				//	go pkg.CheckActiveInterval(config.DB)
+				// 启动应用
 				go func() {
 					if err := app.Listen(fmt.Sprintf(":%s", os.Getenv("APP_PORT"))); err != nil {
 						log.Fatalln("Failed to start app: ", err.Error())
@@ -133,7 +180,8 @@ func main() {
 					},
 				)
 				mux := asynq.NewServeMux()
-				//mux.HandleFunc("ops", pkg.CronTaskHandler)
+				mux.HandleFunc("custom_task", taskhandler.CustonCronjobHandler)
+				mux.HandleFunc("server_op", pkg.ServerOperationHandler)
 				go func() {
 					if err := synqSrv.Run(mux); err != nil {
 						log.Fatalln("Failed to start synq:", err.Error())
@@ -151,8 +199,8 @@ func main() {
 				if err := config.DB.AutoMigrate(&credential.UserCredential{}, &upload.UploadRecord{}, &user.User{}, &user.Role{},
 					&gamehost.Hosts{}, &gamechannel.Channels{}, &gamegroup.Groups{}, &gameserver.Games{},
 					&gameserver.GameHosts{}, &datasource.Datasources{}, &task.CronJobs{}, &task.GameDeploymentTask{},
-					&task.ConfigDeployTask{}, &dashboard.TaskDashboards{}, &dashboard.LoginRecords{}, &dashboard.ResourceStatistics{},
-					&autosync.AutoSync{}, &user.InviteCodes{}); err != nil {
+					&dashboard.TaskDashboards{}, &dashboard.LoginRecords{}, &dashboard.ResourceStatistics{},
+					&autosync.AutoSync{}, &user.InviteCodes{}, &task.CustomTask{}, &task.CustomTaskExecution{}); err != nil {
 					log.Fatalln("AutoMigrate failed:", err)
 				}
 				defaultRoles := []user.Role{

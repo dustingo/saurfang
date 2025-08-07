@@ -1,9 +1,10 @@
 package route
 
 import (
-	"github.com/gofiber/fiber/v3"
 	"os"
 	"saurfang/internal/models/monitor"
+
+	"github.com/gofiber/fiber/v3"
 )
 
 type MonitorRouteModule struct {
@@ -12,8 +13,6 @@ type MonitorRouteModule struct {
 }
 
 func (m *MonitorRouteModule) Info() (namespace string, comment string) {
-	namespace = m.Namespace
-	comment = m.Comment
 	return m.Namespace, m.Comment
 }
 func (m *MonitorRouteModule) RegisterRoutesModule(r *fiber.App) {

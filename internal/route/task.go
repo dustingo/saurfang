@@ -1,13 +1,13 @@
 package route
 
 import (
-	"github.com/gofiber/fiber/v3"
-	"os"
 	"saurfang/internal/config"
 	"saurfang/internal/handler/taskhandler"
-	"saurfang/internal/models/task.go"
+	"saurfang/internal/models/task"
 	"saurfang/internal/models/upload"
 	"saurfang/internal/repository/base"
+
+	"github.com/gofiber/fiber/v3"
 )
 
 type TaskRouteModule struct {
@@ -16,8 +16,8 @@ type TaskRouteModule struct {
 }
 
 func (t *TaskRouteModule) Info() (namespace string, comment string) {
-	namespace = t.Namespace
-	comment = t.Comment
+	// namespace = t.Namespace
+	// comment = t.Comment
 	return t.Namespace, t.Comment
 }
 func (t *TaskRouteModule) RegisterRoutesModule(r *fiber.App) {
@@ -25,7 +25,7 @@ func (t *TaskRouteModule) RegisterRoutesModule(r *fiber.App) {
 	/*
 		创建发布任务
 	*/
-	deployhandler := taskhandler.DeployHandler{base.BaseGormRepository[task.GameDeploymentTask]{DB: config.DB}}
+	deployhandler := taskhandler.DeployHandler{BaseGormRepository: base.BaseGormRepository[task.GameDeploymentTask]{DB: config.DB}}
 	taskRouter.Post("/deploy/create", deployhandler.Handler_CreateDeployTask)
 	taskRouter.Delete("/deploy/delete/:id", deployhandler.Handler_DeleteDeployTask)
 	taskRouter.Get("/deploy/list", deployhandler.Handler_ShowDeployTask)
@@ -33,56 +33,51 @@ func (t *TaskRouteModule) RegisterRoutesModule(r *fiber.App) {
 	taskRouter.Get("/deploy/listPerPage", deployhandler.Handler_ShowDeployPerPage)
 
 	/*
-		创建playbook
-	*/
-	playbookhandler := taskhandler.PlaybookHandler{base.NomadJobRepository{Consul: config.ConsulCli, Ns: os.Getenv("GAME_PLAYBOOK_NAMESPACE")}}
-	taskRouter.Post("/playbook/create", playbookhandler.Handler_CreatePlaybook)
-	taskRouter.Delete("/playbook/delete/:key", playbookhandler.Handler_DeletePlaybook)
-	taskRouter.Put("/playbook/update", playbookhandler.Handler_UpdatePlaybook)
-	taskRouter.Get("/playbook/list", playbookhandler.Handler_ShowPlaybook)
-	taskRouter.Get("/playbook/listByKey", playbookhandler.Handler_ShowPlaybookByKey)
-	taskRouter.Get("/playbook/select", playbookhandler.Handler_PlaybookSelect)
-
-	/*
 		上传服务器端
 	*/
-	uploadhandler := taskhandler.UploadHandler{base.BaseGormRepository[upload.UploadRecord]{DB: config.DB}}
+	uploadhandler := taskhandler.UploadHandler{BaseGormRepository: base.BaseGormRepository[upload.UploadRecord]{DB: config.DB}}
 	taskRouter.Get("/upload/file/list", uploadhandler.Handler_ShowServerPackage)
 	taskRouter.Get("/upload/records", uploadhandler.Handler_ShowUploadRecords)
 	taskRouter.Get("/upload/server", uploadhandler.Handler_UploadServerPackage)
-	/*
-		创建游戏服配置发布任务
-	*/
-	gameconfigDeployTaskHandler := taskhandler.ConfigDeployHandler{base.BaseGormRepository[task.ConfigDeployTask]{DB: config.DB}}
-	taskRouter.Post("/config/create", gameconfigDeployTaskHandler.Handler_CreateConfigDeployTask)
-	taskRouter.Delete("/config/delete/:id", gameconfigDeployTaskHandler.Handler_DeleteConfigDeployTask)
-	taskRouter.Get("/config/list", gameconfigDeployTaskHandler.Handler_ShowConfigDeployTask)
-	taskRouter.Get("/config/listPerPage", gameconfigDeployTaskHandler.Handler_ShowConfigDeployTaskPerPage)
+
 	/*
 		创建计划任务
 	*/
-	cronjobTaskHandler := taskhandler.CronjobHandler{base.BaseGormRepository[task.CronJobs]{DB: config.DB}}
+	cronjobTaskHandler := taskhandler.CronjobHandler{BaseGormRepository: base.BaseGormRepository[task.CronJobs]{DB: config.DB}}
 	taskRouter.Post("/cronjob/create", cronjobTaskHandler.Handler_CreateCronjobTask)
 	taskRouter.Delete("/cronjob/delete/:id", cronjobTaskHandler.Handler_DeleteCronjobTask)
 	taskRouter.Put("/cronjob/update/:id", cronjobTaskHandler.Handler_UpdateCronjobTask)
 	taskRouter.Get("/cronjob/list", cronjobTaskHandler.Handler_ShowCronjobTask)
 	taskRouter.Put("/cronjob/reset/:id", cronjobTaskHandler.Handler_ResetCronjobStatus)
+
+	// 新增：获取可用的自定义任务和游戏服务器列表
+	taskRouter.Get("/cronjob/available-custom-tasks", cronjobTaskHandler.Handler_GetAvailableCustomTasks)
+	taskRouter.Get("/cronjob/available-servers", cronjobTaskHandler.Handler_GetAvailableServers)
+
 	/*
-		执行任务
+		自定义任务管理
 	*/
-	// 执行游戏进程发布
-	//taskRouter.Get("/run/process/deploy", deployhandler.Handler_RunGameDeployTask)
-	//// 执行游戏配置发布
-	//taskRouter.Get("/run/config/deploy", deployhandler.Handler_RunConfigDeployTask)
-	//taskRouter.Get("/run/task/:id", deployhandler.Handler_RunOpsTask)
-	/*
-		常规任务
-	*/
-	normakTaskHandler := taskhandler.OpsTaskHandler{base.BaseGormRepository[task.SaurfangOpstask]{DB: config.DB}}
-	taskRouter.Post("/ops/create", normakTaskHandler.Handler_CreateOpsNormalTask)
-	taskRouter.Delete("/ops/delete/:id", normakTaskHandler.Handler_DeleteOpsNormalTask)
-	taskRouter.Get("/ops/listPerPage", normakTaskHandler.Handler_ShowOpsNormalTaskPerPage)
-	taskRouter.Get("/ops/select", normakTaskHandler.Handler_CrontabJobTaskSelect)
+	customTaskHandler := taskhandler.NewCustomTaskHandler()
+	taskRouter.Post("/custom/create", customTaskHandler.Handler_CreateCustomTask)
+	taskRouter.Get("/custom/list", customTaskHandler.Handler_ListCustomTasks)
+
+	// 执行状态管理
+	taskRouter.Get("/custom/monitor/execution/status/:execution_id", customTaskHandler.Handler_GetExecutionStatus)
+	taskRouter.Get("/custom/monitor/execution/logs/:execution_id", customTaskHandler.Handler_GetExecutionLogs)
+	taskRouter.Post("/custom/monitor/execution/stop/:execution_id", customTaskHandler.Handler_StopExecution)
+	taskRouter.Get("/custom/monitor/executions/:task_id", customTaskHandler.Handler_ListExecutions)
+
+	//查询自定义任务执行记录
+	customTaskExecutionsHandler := taskhandler.NewCustomTaskExecutionsHandler()
+	taskRouter.Get("/custom/record/executions", customTaskExecutionsHandler.Handler_ListCustomExecutions)
+	taskRouter.Delete("/custom/record/executions/:id", customTaskExecutionsHandler.Handler_DeleteCustomExecutions)
+
+	// 这些路由必须放在更具体的路由之后，避免冲突
+	taskRouter.Get("/custom/listById/:id", customTaskHandler.Handler_GetCustomTask)
+	taskRouter.Put("/custom/update/:id", customTaskHandler.Handler_UpdateCustomTask)
+	taskRouter.Delete("/custom/delete/:id", customTaskHandler.Handler_DeleteCustomTask)
+	// 执行自定义任务
+	taskRouter.Post("/custom/execute/:id", customTaskHandler.Handler_ExecuteCustomTask)
 }
 func init() {
 	RegisterRoutesModule(&TaskRouteModule{Namespace: "/api/v1/task", Comment: "运维操作管理"})

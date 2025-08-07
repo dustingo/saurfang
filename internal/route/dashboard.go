@@ -1,8 +1,9 @@
 package route
 
 import (
-	"github.com/gofiber/fiber/v3"
 	"saurfang/internal/handler/boardhandler"
+
+	"github.com/gofiber/fiber/v3"
 )
 
 type DashboardRouteModule struct {
@@ -11,8 +12,6 @@ type DashboardRouteModule struct {
 }
 
 func (d *DashboardRouteModule) Info() (namespace string, comment string) {
-	namespace = d.Namespace
-	comment = d.Comment
 	return d.Namespace, d.Comment
 }
 func (d *DashboardRouteModule) RegisterRoutesModule(r *fiber.App) {
@@ -26,6 +25,23 @@ func (d *DashboardRouteModule) RegisterRoutesModule(r *fiber.App) {
 		用户登录
 	*/
 	dashboardRoute.Get("/login/records", boardhandler.Handler_LoginRecords)
+
+	/*
+		Dashboard综合统计
+	*/
+	dashboardRoute.Get("/stats", boardhandler.Handler_DashboardStats)
+
+	/*
+		自定义任务图表统计
+	*/
+	dashboardRoute.Get("/custom-task-charts", boardhandler.Handler_CustomTaskCharts)
+
+	/*
+		自定义任务详细统计
+	*/
+	dashboardRoute.Get("/custom-task-stats", boardhandler.Handler_CustomTaskDetailedStats)
+	dashboardRoute.Get("/custom-task-history", boardhandler.Handler_CustomTaskExecutionHistory)
+	dashboardRoute.Get("/custom-task-performers", boardhandler.Handler_CustomTaskTopPerformers)
 }
 func init() {
 	RegisterRoutesModule(&DashboardRouteModule{Namespace: "/api/v1/dashboard", Comment: "看板路由"})

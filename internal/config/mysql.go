@@ -2,7 +2,7 @@ package config
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"time"
 
@@ -53,11 +53,11 @@ func (c *DBManager) periodicHealthCheck() {
 	ticker := time.NewTicker(c.checkPeriod)
 	for range ticker.C {
 		if err := c.db.Exec("SELECT 1").Error; err != nil {
-			log.Printf("Database connection lost: %v\n", err)
+			slog.Error("database connection lost", "error", err)
 			if err := c.Connect(); err != nil {
-				log.Printf("Failed to reconnect: %v\n", err)
+				slog.Error("failed to reconnect", "error", err)
 			} else {
-				log.Println("Successfully reconnected to the database")
+				slog.Info("successfully reconnected to the database")
 			}
 		}
 	}
@@ -76,7 +76,8 @@ func InitMySQL() {
 		PASSWORD, HOST, PORT, DATABASE)
 	mysqlManager := NewDBManager(dsn)
 	if err := mysqlManager.Connect(); err != nil {
-		log.Fatal(fmt.Errorf("failed to connect to the database: %w", err))
+		slog.Error("failed to connect to the database", "error", err)
+		os.Exit(-1)
 	}
 	DB = mysqlManager.DB()
 }

@@ -3,14 +3,15 @@ package middleware
 import (
 	"context"
 	"fmt"
-	"github.com/dgrijalva/jwt-go"
-	"github.com/gofiber/fiber/v3"
 	"net/http"
 	"os"
 	"saurfang/internal/config"
 	"saurfang/internal/tools/pkg"
 	"strconv"
 	"strings"
+
+	"github.com/dgrijalva/jwt-go"
+	"github.com/gofiber/fiber/v3"
 )
 
 func UserAuth() fiber.Handler {
@@ -34,18 +35,12 @@ func UserAuth() fiber.Handler {
 				userid, code, ok := pkg.VerifySignature(accessKey, signature, ctx.Method(), perm, timestamp)
 				if !ok {
 					// 校验失败
-					return ctx.Status(code).JSON(fiber.Map{
-						"status":  1,
-						"message": http.StatusText(code),
-					})
+					return pkg.NewAppResponse(ctx, code, 1, http.StatusText(code), "", nil)
 				}
 				// 凭证校验通过,继续进行权限校验
 				roleid, err := pkg.GetRoleOfUser(userid)
 				if err != nil {
-					return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-						"status":  1,
-						"message": err.Error(),
-					})
+					return pkg.NewAppResponse(ctx, fiber.StatusUnauthorized, 1, err.Error(), "", nil)
 				}
 				//perm := formatRequestPath(requestPath)
 				if hasPermission(roleid, perm) {
@@ -53,35 +48,23 @@ func UserAuth() fiber.Handler {
 					//ctx.Set("X-Request-User", (claims["username"].(interface{}).(string)))
 					return ctx.Next()
 				} else {
-					return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-						"status":  1,
-						"message": "unauthorized",
-					})
+					return pkg.NewAppResponse(ctx, fiber.StatusUnauthorized, 1, "unauthorized", "", nil)
 				}
 
 			} else {
 				// 凭证不存在，jwt也不存在
-				return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-					"status":  1,
-					"message": "unauthorized",
-				})
+				return pkg.NewAppResponse(ctx, fiber.StatusUnauthorized, 1, "unauthorized", "", nil)
 			}
 		}
 		token, err := jwt.Parse(ck, func(token *jwt.Token) (interface{}, error) {
 			return []byte(os.Getenv("JWT_TOKEN_SECRET")), nil
 		})
 		if err != nil || !token.Valid {
-			return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"status":  1,
-				"message": "unauthorized",
-			})
+			return pkg.NewAppResponse(ctx, fiber.StatusUnauthorized, 1, "unauthorized", "", nil)
 		}
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
-			return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"status":  1,
-				"message": "unauthorized",
-			})
+			return pkg.NewAppResponse(ctx, fiber.StatusUnauthorized, 1, "unauthorized", "", nil)
 		}
 		role := claims["role"].(interface{})
 		perm := formatRequestPath(requestPath)
@@ -90,19 +73,11 @@ func UserAuth() fiber.Handler {
 			//ctx.Set("X-Request-User", (claims["username"].(interface{}).(string)))
 			return ctx.Next()
 		} else {
-			return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"status":  1,
-				"message": "unauthorized",
-			})
+			return pkg.NewAppResponse(ctx, fiber.StatusUnauthorized, 1, "unauthorized", "", nil)
 		}
 	}
 }
 func hasPermission(roleid uint, path string) bool {
-	type UserPermission struct {
-		ID    uint   ` json:"id"`
-		Name  string `json:"name"`
-		Group string `json:"group"`
-	}
 	key := fmt.Sprintf("role_permission:%d", roleid)
 	if exists, _ := config.CahceClient.Exists(context.Background(), key).Result(); exists < 1 {
 		return false
