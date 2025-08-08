@@ -82,6 +82,7 @@ func hasPermission(roleid uint, path string) bool {
 	if exists, _ := config.CahceClient.Exists(context.Background(), key).Result(); exists < 1 {
 		return false
 	}
+	// 检查缓存中是否存在该权限
 	exists, err := config.CahceClient.SIsMember(context.Background(), key, path).Result()
 	if err != nil {
 		return false
@@ -93,15 +94,7 @@ func hasPermission(roleid uint, path string) bool {
 	if err := pkg.LoadPermissionToRedis(roleid); err != nil {
 		return false
 	}
-	//// 查找role_permissions里是否有请求权限
-	//	//if err := config.DB.Raw("SELECT p.name,p.group,p.`id`  from permissions p JOIN  role_permissions rp ON rp.permission_id = p.id where rp.role_id = ?", roleid).Scan(&ups).Error; err != nil {
-	//	//	return false
-	//	//}
-	//	//for _, g := range ups {
-	//	//	if g.Name == path {
-	//	//		return true
-	//	//	}
-	//	//}
+	// 再次从缓存中查询,如果还是不存在,就返回错误
 	exists, err = config.CahceClient.SIsMember(context.Background(), key, path).Result()
 	if err != nil {
 		return false

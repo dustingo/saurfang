@@ -37,6 +37,7 @@ func (u *UserRouteModule) RegisterRoutesModule(r *fiber.App) {
 	userRoute.Get("/role/select", userHandler.Handler_SelectRole)
 	userRoute.Put("/role/permission/set", userHandler.Handler_SetRolePermission)
 	userRoute.Get("/role/permission/select", userHandler.Handler_PermissionGroupSelect)
+	userRoute.Post("/auth/change-password", userHandler.Handler_ChangePassword)
 }
 func init() {
 	RegisterRoutesModule(&UserRouteModule{Namespace: "/api/v1/user", Comment: "权限管理"})

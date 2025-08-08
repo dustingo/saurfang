@@ -86,6 +86,33 @@ func (u *UserHandler) Handler_ListUser(c fiber.Ctx) error {
 	}
 	return pkg.NewAppResponse(c, fiber.StatusOK, 0, "success", "", users)
 }
+func (u *UserHandler) Handler_ChangePassword(c fiber.Ctx) error {
+	payload := struct {
+		OldPassword string `json:"oldPassword"`
+		NewPassword string `json:"newPassword"`
+	}{}
+	if err := c.Bind().Body(&payload); err != nil {
+		return pkg.NewAppResponse(c, fiber.StatusBadRequest, 1, "confirm your password", err.Error(), fiber.Map{})
+	}
+	userInfo := struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}{}
+	if err := u.DB.Table("users").Where("username = ?", c.Get("X-Request-User")).Select("username", "password").First(&userInfo).Error; err != nil {
+		return pkg.NewAppResponse(c, fiber.StatusInternalServerError, 1, "fail to get user info", err.Error(), fiber.Map{})
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(userInfo.Password), []byte(payload.OldPassword)); err != nil {
+		return pkg.NewAppResponse(c, fiber.StatusBadRequest, 1, "confirm your password", err.Error(), fiber.Map{})
+	}
+	hashedNewPassword, err := bcrypt.GenerateFromPassword([]byte(payload.NewPassword), 10)
+	if err != nil {
+		return pkg.NewAppResponse(c, fiber.StatusInternalServerError, 1, "fail to generate new password", err.Error(), fiber.Map{})
+	}
+	if err := u.DB.Table("users").Where("username = ?", c.Get("X-Request-User")).Update("password", string(hashedNewPassword)).Error; err != nil {
+		return pkg.NewAppResponse(c, fiber.StatusInternalServerError, 1, "fail to update password", err.Error(), fiber.Map{})
+	}
+	return pkg.NewAppResponse(c, fiber.StatusOK, 0, "success", "", fiber.Map{})
+}
 func (u *UserHandler) Handler_SelectUser(c fiber.Ctx) error {
 	var users []user.UserInfo
 	if err := u.DB.Table("users").Find(&users).Error; err != nil {
