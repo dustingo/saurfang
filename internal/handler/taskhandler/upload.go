@@ -21,6 +21,7 @@ type UploadHandler struct {
 	base.BaseGormRepository[upload.UploadRecord]
 }
 
+// Handler_ShowServerPackage 显示服务器端文件列表
 func (u *UploadHandler) Handler_ShowServerPackage(c fiber.Ctx) error {
 	var files []upload.FileInfo
 	entries, err := os.ReadDir(os.Getenv("SERVER_PACKAGE_SRC_PATH"))
@@ -43,11 +44,10 @@ func (u *UploadHandler) Handler_ShowServerPackage(c fiber.Ctx) error {
 	}
 	return pkg.NewAppResponse(c, fiber.StatusOK, 0, "success", "", files)
 }
+
+// Handler_UploadServerPackage 上传服务器端文件
 func (u *UploadHandler) Handler_UploadServerPackage(c fiber.Ctx) error {
-	c.Set("Content-Type", "text/event-stream")
-	c.Set("Cache-control", "no-cache")
-	c.Set("Connection", "keep-alive")
-	c.Set("Transfer-Encoding", "chunked")
+	u.setSSEHeaders(c)
 	file := c.Query("file")
 	targetID, _ := strconv.Atoi(c.Query("target"))
 	startTime := time.Now()
@@ -105,6 +105,8 @@ func (u *UploadHandler) Handler_UploadServerPackage(c fiber.Ctx) error {
 	}()
 	return c.SendStream(reader)
 }
+
+// Handler_ShowUploadRecords 显示上传记录
 func (u *UploadHandler) Handler_ShowUploadRecords(c fiber.Ctx) error {
 	page, _ := strconv.Atoi(c.Params("page", "1"))
 	pageSize, _ := strconv.Atoi(c.Params("pageSize", "10"))
@@ -117,4 +119,14 @@ func (u *UploadHandler) Handler_ShowUploadRecords(c fiber.Ctx) error {
 		return pkg.NewAppResponse(c, fiber.StatusInternalServerError, 1, "fail to find records", err.Error(), fiber.Map{})
 	}
 	return pkg.NewAppResponse(c, fiber.StatusOK, 0, "success", "", records)
+}
+
+// setSSEHeaders 设置SSE响应头
+func (*UploadHandler) setSSEHeaders(ctx fiber.Ctx) {
+	ctx.Set("Content-Type", "text/event-stream")
+	ctx.Set("Cache-control", "no-cache")
+	ctx.Set("Connection", "keep-alive")
+	ctx.Set("Transfer-Encoding", "chunked")
+	ctx.Set("Access-Control-Allow-Origin", "*")
+	ctx.Set("Access-Control-Allow-Headers", "Cache-Control")
 }

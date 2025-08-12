@@ -1,20 +1,17 @@
 package pkg
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"log/slog"
-	"net/http"
 	"os"
 	"strings"
 	"sync"
 	"time"
 
 	"saurfang/internal/config"
-	"saurfang/internal/models/notice"
 	"saurfang/internal/models/serverconfig"
 	"saurfang/internal/models/task"
 	"saurfang/internal/tools"
@@ -261,31 +258,4 @@ func ServerOperationHandler(ctx context.Context, at *asynq.Task) error {
 	}
 
 	return nil
-}
-
-func applyNotice(info string, ntype, nteam string, start time.Time) {
-	msg := notice.PushPayload{
-		Status:      "任务通知",
-		AlType:      ntype,
-		Team:        nteam,
-		Description: info,
-		Summary:     info,
-		StartsAt:    &start,
-	}
-	bf, err := json.Marshal(&msg)
-	if err != nil {
-		return
-	}
-	client := http.Client{}
-	req, err := http.NewRequest("POST", os.Getenv("NTFY_ADDR"), bytes.NewBuffer(bf))
-	if err != nil {
-		return
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.SetBasicAuth(os.Getenv("NTFY_USER"), os.Getenv("NTFY_PASSWORD"))
-	resp, err := client.Do(req)
-	if err != nil {
-		return
-	}
-	defer resp.Body.Close()
 }

@@ -21,6 +21,7 @@ import (
 	"saurfang/internal/models/gamegroup"
 	"saurfang/internal/models/gamehost"
 	"saurfang/internal/models/gameserver"
+	"saurfang/internal/models/notify"
 	"saurfang/internal/models/task"
 	"saurfang/internal/models/upload"
 	"saurfang/internal/models/user"
@@ -59,7 +60,7 @@ func main() {
 		char                     string
 	)
 	var rootCmd = &cobra.Command{
-		Use:          "--serve| --migrate | -- generate --char| --release",
+		Use:          "--serve| --migrate | -- generate --char",
 		SilenceUsage: false,
 		PreRun: func(cmd *cobra.Command, args []string) {
 			fmt.Printf("go version: %s\nBuild version: %s\nBuild time: %s\n",
@@ -200,7 +201,7 @@ func main() {
 					&gamehost.Hosts{}, &gamechannel.Channels{}, &gamegroup.Groups{}, &gameserver.Games{},
 					&gameserver.GameHosts{}, &datasource.Datasources{}, &task.CronJobs{}, &task.GameDeploymentTask{},
 					&dashboard.TaskDashboards{}, &dashboard.LoginRecords{}, &dashboard.ResourceStatistics{},
-					&autosync.AutoSync{}, &user.InviteCodes{}, &task.CustomTask{}, &task.CustomTaskExecution{}); err != nil {
+					&autosync.AutoSync{}, &user.InviteCodes{}, &task.CustomTask{}, &task.CustomTaskExecution{}, notify.NotifySubscribe{}, notify.NotifyConfig{}); err != nil {
 					log.Fatalln("AutoMigrate failed:", err)
 				}
 				defaultRoles := []user.Role{
