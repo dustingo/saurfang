@@ -1,0 +1,34 @@
+{
+  "notify_configs": [
+    {
+      "name": "钉钉通知配置",
+      "channel": "dingtalk",
+      "config": "{\"token\": \"your_dingtalk_token\", \"secret\": \"your_dingtalk_secret\"}",
+      "status": "0"
+    },
+    {
+      "name": "企业微信通知配置",
+      "channel": "wechat",
+      "config": "{\"AppID\": \"your_wechat_appid\", \"AppSecret\": \"your_wechat_secret\", \"Token\": \"your_wechat_token\", \"EncodingAESKey\": \"your_encoding_aes_key\", \"ToReceivers\": \"user1,user2\"}",
+      "status": "0"
+    },
+    {
+      "name": "邮件通知配置",
+      "channel": "email",
+      "config": "{\"to\": \"admin@example.com,user@example.com\"}",
+      "status": "0"
+    },
+    {
+      "name": "HTTP通知配置",
+      "channel": "http",
+      "config": "{\"URL\": \"http://localhost:8080/webhook\", \"Header\": {}, \"ContentType\": \"application/json\", \"Method\": \"POST\"}",
+      "status": "0"
+    },
+    {
+      "name": "飞书通知配置",
+      "channel": "lark",
+      "config": "{\"webHookURL\": \"https://open.feishu.cn/open-apis/bot/v2/hook/your_webhook_url\"}",
+      "status": "0"
+    }
+  ]
+} 

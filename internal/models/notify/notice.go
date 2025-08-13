@@ -5,6 +5,15 @@ import (
 	"time"
 )
 
+// EventType
+/*
+upload
+gameops
+gamedeploy
+customjob
+cronjob
+*/
+
 // status 通知订阅状态
 
 const (
@@ -14,21 +23,31 @@ const (
 	ConfigKey      string = "notify_config"
 )
 
+// 通知渠道类型常量
+const (
+	ChannelDingTalk string = "dingtalk"
+	ChannelWeChat   string = "wechat"
+	ChannelEmail    string = "email"
+	ChannelHTTP     string = "http"
+	ChannelLark     string = "lark"
+)
+
 // NotifySubscribe 通知订阅
 type NotifySubscribe struct {
-	ID            uint      `gorm:"primaryKey"`
-	UserID        uint      `gorm:"not null;index;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
-	User          user.User `gorm:"foreignKey:UserID" json:"user,omitempty"`
-	EventType     string    `gorm:"type:text;not null" json:"event_type,omitempty"`
-	NotifyChannel string    `gorm:"type:text;not null" json:"notify_channel,omitempty"`
-	Status        string    `gorm:"type:text;not null" json:"status,omitempty"`
-	CreatedAt     time.Time `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt     time.Time `gorm:"autoUpdateTime" json:"updated_at"`
+	ID             uint      `gorm:"primaryKey" json:"id"`
+	UserID         uint      `gorm:"not null;index;constraint:OnUpdate:CASCADE,OnDelete:CASCADE" json:"user_id"`
+	User           user.User `gorm:"foreignKey:UserID" json:"user,omitempty"`
+	EventType      string    `gorm:"type:text;not null" json:"event_type,omitempty"`
+	NotifyConfigID uint      `gorm:"not null;index;constraint:OnUpdate:CASCADE,OnDelete:CASCADE" json:"notify_config_id,omitempty"`
+	Status         string    `gorm:"type:text;not null" json:"status,omitempty"`
+	CreatedAt      time.Time `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt      time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
 type NotifyConfig struct {
-	ID        uint      `gorm:"primaryKey"`
+	ID        uint      `gorm:"primaryKey" json:"id"`
 	Name      string    `gorm:"type:text;not null" json:"name,omitempty"`
+	Channel   string    `gorm:"type:text;not null" json:"channel,omitempty"`
 	Config    string    `gorm:"type:text;not null" json:"config,omitempty"`
 	Status    string    `gorm:"type:text;not null" json:"status,omitempty"`
 	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
@@ -66,3 +85,37 @@ type NotifyConfig struct {
 		webHookURL: "https://open.feishu.cn/open-apis/bot/v2/hook/xxxx",
 	}
 */
+
+// IsValidChannel 检查渠道是否有效
+func (nc *NotifyConfig) IsValidChannel() bool {
+	validChannels := []string{
+		ChannelDingTalk,
+		ChannelWeChat,
+		ChannelEmail,
+		ChannelHTTP,
+		ChannelLark,
+	}
+
+	for _, validChannel := range validChannels {
+		if nc.Channel == validChannel {
+			return true
+		}
+	}
+	return false
+}
+
+// GetChannelDisplayName 获取渠道的显示名称
+func (nc *NotifyConfig) GetChannelDisplayName() string {
+	channelNames := map[string]string{
+		ChannelDingTalk: "钉钉",
+		ChannelWeChat:   "微信",
+		ChannelEmail:    "邮件",
+		ChannelHTTP:     "HTTP",
+		ChannelLark:     "飞书",
+	}
+
+	if displayName, exists := channelNames[nc.Channel]; exists {
+		return displayName
+	}
+	return nc.Channel
+}

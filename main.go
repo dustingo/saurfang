@@ -161,6 +161,8 @@ func main() {
 				}
 				// 加载权限到缓存
 				pkg.WarmUpCache()
+				// 加载消息通知配置到缓存
+				pkg.WarmUpNotifyCache()
 				// 启动计划任务管理器
 				go pkg.TaskManagerSetup()
 				// 启动定时检查活跃间隔
