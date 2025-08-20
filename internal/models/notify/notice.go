@@ -3,6 +3,8 @@ package notify
 import (
 	"saurfang/internal/models/user"
 	"time"
+
+	"gorm.io/datatypes"
 )
 
 // EventType
@@ -13,9 +15,16 @@ gamedeploy
 customjob
 cronjob
 */
+const (
+	EventChannel        string = "event:notification"
+	EventTypeUpload     string = "upload"
+	EventTypeGameOps    string = "gameops"
+	EventTypeGameDeploy string = "gamedeploy"
+	EventTypeCustomJob  string = "customjob"
+	EventTypeCronJob    string = "cronjob"
+)
 
 // status 通知订阅状态
-
 const (
 	StatusActive   string = "0"
 	StatusInactive string = "1"
@@ -44,14 +53,15 @@ type NotifySubscribe struct {
 	UpdatedAt      time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
+// NotifyConfig 通知渠道配置 数据库模型
 type NotifyConfig struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
-	Name      string    `gorm:"type:text;not null" json:"name,omitempty"`
-	Channel   string    `gorm:"type:text;not null" json:"channel,omitempty"`
-	Config    string    `gorm:"type:text;not null" json:"config,omitempty"`
-	Status    string    `gorm:"type:text;not null" json:"status,omitempty"`
-	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	Name      string         `gorm:"type:text;not null" json:"name,omitempty"`
+	Channel   string         `gorm:"type:text;not null" json:"channel,omitempty"`
+	Config    datatypes.JSON `gorm:"type:json;not null" json:"config,omitempty"`
+	Status    string         `gorm:"type:text;not null" json:"status,omitempty"`
+	CreatedAt time.Time      `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt time.Time      `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
 // NotifyChannel

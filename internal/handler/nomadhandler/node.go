@@ -9,9 +9,11 @@ import (
 	"saurfang/internal/config"
 	"saurfang/internal/models/amis"
 	"saurfang/internal/models/nomadjob"
+	"saurfang/internal/models/notify"
 	"saurfang/internal/models/task"
 	"saurfang/internal/repository/base"
 	"saurfang/internal/tools"
+	"saurfang/internal/tools/ntfy"
 	"saurfang/internal/tools/pkg"
 	"strings"
 	"sync"
@@ -128,6 +130,9 @@ func (n *NomadHandler) Handler_DeployNomadOpsJob(ctx fiber.Ctx) error {
 	n.setSSEHeaders(ctx)
 	serverIDs := ctx.Query("server_ids")
 	ops := ctx.Query("ops", "")
+	var successCount, failCount int
+	var successJobs, failedJobs []string
+	// 消息通知
 	if serverIDs == "" {
 		return pkg.NewAppResponse(ctx, fiber.StatusBadRequest, 1, "server_ids is required", "", nil)
 	}
@@ -136,6 +141,7 @@ func (n *NomadHandler) Handler_DeployNomadOpsJob(ctx fiber.Ctx) error {
 	}
 	keys := strings.Split(serverIDs, ",")
 	messageChan := make(chan string, 100)
+	var mu sync.Mutex
 	go func() {
 		defer close(messageChan)
 		defer func() {
@@ -151,16 +157,17 @@ func (n *NomadHandler) Handler_DeployNomadOpsJob(ctx fiber.Ctx) error {
 			pair, _, err := kv.Get(tools.AddNamespace(key, n.Ns), &consulapi.QueryOptions{})
 			if err != nil {
 				messageChan <- fmt.Sprintf("data: [X] search config file failed. id: %s\n\n", key)
+				n.recordFailedJob(&mu, &failCount, &failedJobs, key)
 				continue
 			}
 			if pair == nil {
 				messageChan <- fmt.Sprintf("data: [X] config file not found. id: %s\n\n", key)
+				n.recordFailedJob(&mu, &failCount, &failedJobs, key)
 				continue
 			}
 			content[key] = strings.ReplaceAll(string(pair.Value), "\r", "")
 			contents = append(contents, content)
 		}
-
 		if len(contents) == 0 {
 			messageChan <- "data: [X] all config files were not found! check!check again!\n\n"
 			return
@@ -175,6 +182,7 @@ func (n *NomadHandler) Handler_DeployNomadOpsJob(ctx fiber.Ctx) error {
 					job, err := n.Nomad.Jobs().ParseHCL(v, true)
 					if err != nil {
 						messageChan <- fmt.Sprintf("data: [X] parse job hcl config file failed. id: %s\n\n", k)
+						n.recordFailedJob(&mu, &failCount, &failedJobs, k)
 						continue
 					}
 					wg.Add(1)
@@ -183,12 +191,14 @@ func (n *NomadHandler) Handler_DeployNomadOpsJob(ctx fiber.Ctx) error {
 						res, _, err := n.Nomad.Jobs().Deregister(id, false, nil)
 						if err != nil {
 							messageChan <- fmt.Sprintf("data: [X] stop job failed. key: %s job: %s, error: %v, message: %s\n\n", serverID, id, err, res)
+							n.recordFailedJob(&mu, &failCount, &failedJobs, k)
 							return
 						}
 						messageChan <- fmt.Sprintf("data: [√] stop job success. key: %s job: %s\n\n", serverID, id)
 						mu.Lock()
 						n.updateGameStatus(serverID, statusOffline)
 						mu.Unlock()
+						n.recordSuccessJob(&mu, &successCount, &successJobs, k)
 					}(*job.ID, k)
 				}
 			}
@@ -198,6 +208,7 @@ func (n *NomadHandler) Handler_DeployNomadOpsJob(ctx fiber.Ctx) error {
 					job, err := n.Nomad.Jobs().ParseHCL(v, true)
 					if err != nil {
 						messageChan <- fmt.Sprintf("data: [X] parse job hcl config file failed. id: %s\n\n", k)
+						n.recordFailedJob(&mu, &failCount, &failedJobs, k)
 						continue
 					}
 					wg.Add(1)
@@ -206,23 +217,24 @@ func (n *NomadHandler) Handler_DeployNomadOpsJob(ctx fiber.Ctx) error {
 						res, _, err := n.Nomad.Jobs().Register(j, nil)
 						if err != nil {
 							messageChan <- fmt.Sprintf("data: [X] deploy job failed. key: %s job: %s, error: %v\n\n", serverID, *j.ID, err)
+							n.recordFailedJob(&mu, &failCount, &failedJobs, k)
 							return
 						}
 						messageChan <- fmt.Sprintf("data: [√] deploy job success. key: %s job: %s, evalID: %s\n\n", serverID, *j.ID, res.EvalID)
 						mu.Lock()
 						n.updateGameStatus(serverID, statusOnline)
 						mu.Unlock()
+						n.recordSuccessJob(&mu, &successCount, &successJobs, k)
 					}(job, k)
 				}
 			}
 		default:
 			messageChan <- fmt.Sprintf("data: [X] unknown operation type: %s\n\n", ops)
 		}
-
 		wg.Wait()
+		ntfy.PublishNotification(notify.EventTypeGameOps, fmt.Sprintf("game %s", ops), successJobs, failedJobs, successCount, failCount)
 		messageChan <- "data: [√] All operations completed\n\n"
 	}()
-
 	// 实时发送消息到客户端
 	for message := range messageChan {
 		if _, err := ctx.Write([]byte(message)); err != nil {
@@ -431,4 +443,20 @@ func (n *NomadHandler) setSSEHeaders(ctx fiber.Ctx) {
 // updateGameStatus 更新游戏状态
 func (n *NomadHandler) updateGameStatus(serverID string, status int) error {
 	return config.DB.Exec("UPDATE games set status = ? where server_id = ?;", status, serverID).Error
+}
+
+// recordFailedJob 记录失败的任务
+func (n *NomadHandler) recordFailedJob(mu *sync.Mutex, failCount *int, failedJobs *[]string, key string) {
+	mu.Lock()
+	defer mu.Unlock()
+	*failCount++
+	*failedJobs = append(*failedJobs, key)
+}
+
+// recordSuccessJob 记录成功的任务
+func (n *NomadHandler) recordSuccessJob(mu *sync.Mutex, successCount *int, successJobs *[]string, key string) {
+	mu.Lock()
+	defer mu.Unlock()
+	*successCount++
+	*successJobs = append(*successJobs, key)
 }

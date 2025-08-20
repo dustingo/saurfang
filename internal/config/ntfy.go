@@ -129,7 +129,7 @@ func InitNtfy() *redis.Client {
 		slog.Error("notify  db parse error:", "error", err)
 		os.Exit(-1)
 	}
-	ntfyMgr := NewRedisManager(os.Getenv("REDIS_HOST"), os.Getenv("REDIS_PUB_SUB_DB"), db)
+	ntfyMgr := NewRedisManager(os.Getenv("REDIS_HOST"), os.Getenv("REDIS_PASSWORD"), db)
 	NtfyClient, err = ntfyMgr.GetClient()
 	if err != nil {
 		slog.Error("notify init error:", "error", err)

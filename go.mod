@@ -18,6 +18,7 @@ require (
 	github.com/hibiken/asynq v0.25.1
 	github.com/huaweicloud/huaweicloud-sdk-go-v3 v0.1.156
 	github.com/joho/godotenv v1.5.1
+	github.com/nikoksr/notify v1.3.0
 	github.com/pkg/sftp v1.13.9
 	github.com/redis/go-redis/v9 v9.7.0
 	github.com/stretchr/testify v1.10.0
@@ -43,6 +44,7 @@ require (
 	github.com/apparentlymart/go-textseg/v13 v13.0.0 // indirect
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/armon/go-metrics v0.4.1 // indirect
+	github.com/blinkbean/dingtalk v1.1.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/clbanning/mxj/v2 v2.7.0 // indirect
 	github.com/coreos/go-semver v0.3.1 // indirect
@@ -117,5 +119,6 @@ require (
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/spf13/cobra v1.9.1
 	golang.org/x/text v0.27.0 // indirect
+	gorm.io/datatypes v1.2.6
 	gorm.io/driver/mysql v1.6.0
 )

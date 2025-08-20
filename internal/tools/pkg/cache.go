@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"saurfang/internal/config"
 	"saurfang/internal/models/notify"
@@ -63,17 +64,26 @@ func WarmUpNotifyCache() error {
 	}
 
 	for _, sub := range subs {
-		// 存储订阅详情
+		// 存储订阅详情 - 使用 JSON 格式避免字段冗余
 		detailKey := fmt.Sprintf("%s:detail:%d", notify.SubscribeKey, sub.ID)
-		if err := config.CahceClient.HSet(context.Background(), detailKey,
-			"user_id", sub.UserID,
-			"event_type", sub.EventType,
-			"notify_config_id", sub.NotifyConfigID,
-			"status", sub.Status).Err(); err != nil {
+		subData := map[string]interface{}{
+			"user_id":          sub.UserID,
+			"event_type":       sub.EventType,
+			"notify_config_id": sub.NotifyConfigID,
+			"status":           sub.Status,
+		}
+
+		// 将数据序列化为 JSON 字符串存储
+		jsonData, err := json.Marshal(subData)
+		if err != nil {
+			continue
+		}
+
+		if err := config.CahceClient.Set(context.Background(), detailKey, jsonData, 24*time.Hour).Err(); err != nil {
 			return err
 		}
 
-		// 按用户ID建立索引
+		// 按用户ID建立索引 - 存储订阅ID列表
 		userIndexKey := fmt.Sprintf("%s:user:%d", notify.SubscribeKey, sub.UserID)
 		if err := config.CahceClient.SAdd(context.Background(), userIndexKey, sub.ID).Err(); err != nil {
 			return err
@@ -107,8 +117,7 @@ func WarmUpNotifyCache() error {
 			return err
 		}
 
-		// 设置详情和索引键过期时间
-		config.CahceClient.Expire(context.Background(), detailKey, 24*time.Hour)
+		// 设置索引键过期时间
 		config.CahceClient.Expire(context.Background(), userIndexKey, 24*time.Hour)
 		config.CahceClient.Expire(context.Background(), configIndexKey, 24*time.Hour)
 		config.CahceClient.Expire(context.Background(), statusIndexKey, 24*time.Hour)
@@ -123,13 +132,22 @@ func WarmUpNotifyCache() error {
 		return nil
 	}
 	for _, cfg := range configs {
-		// 存储配置详情
+		// 存储配置详情 - 使用 JSON 格式
 		configDetailKey := fmt.Sprintf("%s:detail:%d", notify.ConfigKey, cfg.ID)
-		if err := config.CahceClient.HSet(context.Background(), configDetailKey,
-			"name", cfg.Name,
-			"channel", cfg.Channel,
-			"config", cfg.Config,
-			"status", cfg.Status).Err(); err != nil {
+		configData := map[string]interface{}{
+			"name":    cfg.Name,
+			"channel": cfg.Channel,
+			"config":  cfg.Config,
+			"status":  cfg.Status,
+		}
+
+		// 将数据序列化为 JSON 字符串存储
+		jsonData, err := json.Marshal(configData)
+		if err != nil {
+			continue
+		}
+
+		if err := config.CahceClient.Set(context.Background(), configDetailKey, jsonData, 24*time.Hour).Err(); err != nil {
 			return err
 		}
 
@@ -152,7 +170,6 @@ func WarmUpNotifyCache() error {
 		}
 
 		// 设置配置相关键的过期时间
-		config.CahceClient.Expire(context.Background(), configDetailKey, 24*time.Hour)
 		config.CahceClient.Expire(context.Background(), nameIndexKey, 24*time.Hour)
 		config.CahceClient.Expire(context.Background(), channelIndexKey, 24*time.Hour)
 		config.CahceClient.Expire(context.Background(), configStatusIndexKey, 24*time.Hour)
@@ -199,24 +216,16 @@ func GetNotifySubscribesByUser(userID uint) ([]notify.NotifySubscribe, error) {
 	var subs []notify.NotifySubscribe
 	for _, subID := range subIDs {
 		detailKey := fmt.Sprintf("%s:detail:%s", notify.SubscribeKey, subID)
-		subData, err := config.CahceClient.HGetAll(context.Background(), detailKey).Result()
+		subData, err := config.CahceClient.Get(context.Background(), detailKey).Bytes()
 		if err != nil {
 			continue
 		}
 
 		// 解析数据
-		sub := notify.NotifySubscribe{}
-		if id, err := strconv.ParseUint(subID, 10, 32); err == nil {
-			sub.ID = uint(id)
+		var sub notify.NotifySubscribe
+		if err := json.Unmarshal(subData, &sub); err != nil {
+			continue
 		}
-		if userID, err := strconv.ParseUint(subData["user_id"], 10, 32); err == nil {
-			sub.UserID = uint(userID)
-		}
-		sub.EventType = subData["event_type"]
-		if notifyConfigID, err := strconv.ParseUint(subData["notify_config_id"], 10, 32); err == nil {
-			sub.NotifyConfigID = uint(notifyConfigID)
-		}
-		sub.Status = subData["status"]
 
 		subs = append(subs, sub)
 	}
@@ -235,24 +244,16 @@ func GetNotifySubscribesByEvent(eventType string) ([]notify.NotifySubscribe, err
 	var subs []notify.NotifySubscribe
 	for _, subID := range subIDs {
 		detailKey := fmt.Sprintf("%s:detail:%s", notify.SubscribeKey, subID)
-		subData, err := config.CahceClient.HGetAll(context.Background(), detailKey).Result()
+		subData, err := config.CahceClient.Get(context.Background(), detailKey).Bytes()
 		if err != nil {
 			continue
 		}
 
 		// 解析数据
-		sub := notify.NotifySubscribe{}
-		if id, err := strconv.ParseUint(subID, 10, 32); err == nil {
-			sub.ID = uint(id)
+		var sub notify.NotifySubscribe
+		if err := json.Unmarshal(subData, &sub); err != nil {
+			continue
 		}
-		if userID, err := strconv.ParseUint(subData["user_id"], 10, 32); err == nil {
-			sub.UserID = uint(userID)
-		}
-		sub.EventType = subData["event_type"]
-		if notifyConfigID, err := strconv.ParseUint(subData["notify_config_id"], 10, 32); err == nil {
-			sub.NotifyConfigID = uint(notifyConfigID)
-		}
-		sub.Status = subData["status"]
 
 		subs = append(subs, sub)
 	}
@@ -271,22 +272,23 @@ func GetNotifyConfigByName(name string) (*notify.NotifyConfig, error) {
 	// 取第一个匹配的配置
 	configID := configIDs[0]
 	configDetailKey := fmt.Sprintf("%s:detail:%s", notify.ConfigKey, configID)
-	configData, err := config.CahceClient.HGetAll(context.Background(), configDetailKey).Result()
+	configData, err := config.CahceClient.Get(context.Background(), configDetailKey).Bytes()
 	if err != nil {
 		return nil, err
 	}
 
 	// 解析数据
-	cfg := &notify.NotifyConfig{}
+	var cfg notify.NotifyConfig
+	if err := json.Unmarshal(configData, &cfg); err != nil {
+		return nil, err
+	}
+
+	// 设置ID
 	if id, err := strconv.ParseUint(configID, 10, 32); err == nil {
 		cfg.ID = uint(id)
 	}
-	cfg.Name = configData["name"]
-	cfg.Channel = configData["channel"]
-	cfg.Config = configData["config"]
-	cfg.Status = configData["status"]
 
-	return cfg, nil
+	return &cfg, nil
 }
 
 // GetActiveNotifyConfigs 获取所有活跃的通知配置
@@ -300,20 +302,21 @@ func GetActiveNotifyConfigs() ([]notify.NotifyConfig, error) {
 	var configs []notify.NotifyConfig
 	for _, configID := range configIDs {
 		configDetailKey := fmt.Sprintf("%s:detail:%s", notify.ConfigKey, configID)
-		configData, err := config.CahceClient.HGetAll(context.Background(), configDetailKey).Result()
+		configData, err := config.CahceClient.Get(context.Background(), configDetailKey).Bytes()
 		if err != nil {
 			continue
 		}
 
 		// 解析数据
-		cfg := notify.NotifyConfig{}
+		var cfg notify.NotifyConfig
+		if err := json.Unmarshal(configData, &cfg); err != nil {
+			continue
+		}
+
+		// 设置ID
 		if id, err := strconv.ParseUint(configID, 10, 32); err == nil {
 			cfg.ID = uint(id)
 		}
-		cfg.Name = configData["name"]
-		cfg.Channel = configData["channel"]
-		cfg.Config = configData["config"]
-		cfg.Status = configData["status"]
 
 		configs = append(configs, cfg)
 	}
@@ -366,24 +369,16 @@ func GetNotifySubscribesByConfig(configID uint) ([]notify.NotifySubscribe, error
 	var subs []notify.NotifySubscribe
 	for _, subID := range subIDs {
 		detailKey := fmt.Sprintf("%s:detail:%s", notify.SubscribeKey, subID)
-		subData, err := config.CahceClient.HGetAll(context.Background(), detailKey).Result()
+		subData, err := config.CahceClient.Get(context.Background(), detailKey).Bytes()
 		if err != nil {
 			continue
 		}
 
 		// 解析数据
-		sub := notify.NotifySubscribe{}
-		if id, err := strconv.ParseUint(subID, 10, 32); err == nil {
-			sub.ID = uint(id)
+		var sub notify.NotifySubscribe
+		if err := json.Unmarshal(subData, &sub); err != nil {
+			continue
 		}
-		if userID, err := strconv.ParseUint(subData["user_id"], 10, 32); err == nil {
-			sub.UserID = uint(userID)
-		}
-		sub.EventType = subData["event_type"]
-		if notifyConfigID, err := strconv.ParseUint(subData["notify_config_id"], 10, 32); err == nil {
-			sub.NotifyConfigID = uint(notifyConfigID)
-		}
-		sub.Status = subData["status"]
 
 		subs = append(subs, sub)
 	}
@@ -402,24 +397,16 @@ func GetNotifySubscribesByStatus(status string) ([]notify.NotifySubscribe, error
 	var subs []notify.NotifySubscribe
 	for _, subID := range subIDs {
 		detailKey := fmt.Sprintf("%s:detail:%s", notify.SubscribeKey, subID)
-		subData, err := config.CahceClient.HGetAll(context.Background(), detailKey).Result()
+		subData, err := config.CahceClient.Get(context.Background(), detailKey).Bytes()
 		if err != nil {
 			continue
 		}
 
 		// 解析数据
-		sub := notify.NotifySubscribe{}
-		if id, err := strconv.ParseUint(subID, 10, 32); err == nil {
-			sub.ID = uint(id)
+		var sub notify.NotifySubscribe
+		if err := json.Unmarshal(subData, &sub); err != nil {
+			continue
 		}
-		if userID, err := strconv.ParseUint(subData["user_id"], 10, 32); err == nil {
-			sub.UserID = uint(userID)
-		}
-		sub.EventType = subData["event_type"]
-		if notifyConfigID, err := strconv.ParseUint(subData["notify_config_id"], 10, 32); err == nil {
-			sub.NotifyConfigID = uint(notifyConfigID)
-		}
-		sub.Status = subData["status"]
 
 		subs = append(subs, sub)
 	}
@@ -448,20 +435,21 @@ func GetNotifyConfigsByChannel(channel string) ([]notify.NotifyConfig, error) {
 	var configs []notify.NotifyConfig
 	for _, configID := range configIDs {
 		configDetailKey := fmt.Sprintf("%s:detail:%s", notify.ConfigKey, configID)
-		configData, err := config.CahceClient.HGetAll(context.Background(), configDetailKey).Result()
+		configData, err := config.CahceClient.Get(context.Background(), configDetailKey).Bytes()
 		if err != nil {
 			continue
 		}
 
 		// 解析数据
-		cfg := notify.NotifyConfig{}
+		var cfg notify.NotifyConfig
+		if err := json.Unmarshal(configData, &cfg); err != nil {
+			continue
+		}
+
+		// 设置ID
 		if id, err := strconv.ParseUint(configID, 10, 32); err == nil {
 			cfg.ID = uint(id)
 		}
-		cfg.Name = configData["name"]
-		cfg.Channel = configData["channel"]
-		cfg.Config = configData["config"]
-		cfg.Status = configData["status"]
 
 		configs = append(configs, cfg)
 	}
@@ -472,18 +460,18 @@ func GetNotifyConfigsByChannel(channel string) ([]notify.NotifyConfig, error) {
 // GetNotifyConfigByID 根据ID获取通知配置
 func GetNotifyConfigByID(configID uint) (*notify.NotifyConfig, error) {
 	configDetailKey := fmt.Sprintf("%s:detail:%d", notify.ConfigKey, configID)
-	configData, err := config.CahceClient.HGetAll(context.Background(), configDetailKey).Result()
+	configData, err := config.CahceClient.Get(context.Background(), configDetailKey).Bytes()
 	if err != nil {
 		return nil, err
 	}
 
 	// 解析数据
-	cfg := &notify.NotifyConfig{}
-	cfg.ID = configID
-	cfg.Name = configData["name"]
-	cfg.Channel = configData["channel"]
-	cfg.Config = configData["config"]
-	cfg.Status = configData["status"]
+	var cfg notify.NotifyConfig
+	if err := json.Unmarshal(configData, &cfg); err != nil {
+		return nil, err
+	}
 
-	return cfg, nil
+	cfg.ID = configID
+
+	return &cfg, nil
 }

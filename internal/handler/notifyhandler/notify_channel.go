@@ -1,12 +1,18 @@
 package notifyhandler
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"log/slog"
 	"saurfang/internal/config"
 	"saurfang/internal/models/amis"
 	"saurfang/internal/models/notify"
 	"saurfang/internal/repository/base"
 	"saurfang/internal/tools/pkg"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -35,7 +41,7 @@ func (n *NtfyChannelHandler) Handler_CreateNotifyChannel(c fiber.Ctx) error {
 	if payload.Channel == "" {
 		return pkg.NewAppResponse(c, fiber.StatusBadRequest, 1, "Channel is required", "", nil)
 	}
-	if payload.Config == "" {
+	if len(payload.Config) == 0 {
 		return pkg.NewAppResponse(c, fiber.StatusBadRequest, 1, "Config is required", "", nil)
 	}
 
@@ -44,10 +50,37 @@ func (n *NtfyChannelHandler) Handler_CreateNotifyChannel(c fiber.Ctx) error {
 		return pkg.NewAppResponse(c, fiber.StatusBadRequest, 1, "Invalid channel type", "Supported channels: dingtalk, wechat, email, http, lark", nil)
 	}
 
+	// 规范化 Config：若前端把 JSON 当成字符串传来（形如 "\"{\\n  \\\"a\\\":1\\n}\""），解包为原始 JSON
+	if len(payload.Config) > 0 && payload.Config[0] == '"' {
+		var jsonString string
+		if err := json.Unmarshal(payload.Config, &jsonString); err == nil {
+			trimmed := strings.TrimSpace(jsonString)
+			if strings.HasPrefix(trimmed, "{") || strings.HasPrefix(trimmed, "[") {
+				payload.Config = []byte(trimmed)
+			}
+		}
+	}
+
 	payload.Status = notify.StatusActive
 	if err := n.Create(payload); err != nil {
 		return pkg.NewAppResponse(c, fiber.StatusInternalServerError, 1, "Failed to create notify channel", err.Error(), nil)
 	}
+	// 新建配置时,将配置信息写入缓存
+	go func(payload *notify.NotifyConfig) {
+		key := fmt.Sprintf("%s:config:%d", notify.ConfigKey, payload.ID)
+		configData := map[string]interface{}{
+			"name":    payload.Name,
+			"channel": payload.Channel,
+			"config":  payload.Config,
+			"status":  payload.Status,
+		}
+		jsonData, err := json.Marshal(configData)
+		if err != nil {
+			slog.Error("marshal notify config data error", "error", err)
+			return
+		}
+		config.CahceClient.Set(context.Background(), key, jsonData, 24*time.Hour)
+	}(payload)
 	return pkg.NewAppResponse(c, fiber.StatusOK, 0, "Notify channel created successfully", "", payload)
 }
 
@@ -69,7 +102,7 @@ func (n *NtfyChannelHandler) Handler_UpdateNotifyChannel(c fiber.Ctx) error {
 	if payload.Channel == "" {
 		return pkg.NewAppResponse(c, fiber.StatusBadRequest, 1, "Channel is required", "", nil)
 	}
-	if payload.Config == "" {
+	if len(payload.Config) == 0 {
 		return pkg.NewAppResponse(c, fiber.StatusBadRequest, 1, "Config is required", "", nil)
 	}
 
@@ -79,9 +112,27 @@ func (n *NtfyChannelHandler) Handler_UpdateNotifyChannel(c fiber.Ctx) error {
 	}
 
 	payload.ID = uint(id)
+	// 清理JSON字符串中的换行符和不必要的转义字符
 	if err := n.Update(uint(id), payload); err != nil {
 		return pkg.NewAppResponse(c, fiber.StatusInternalServerError, 1, "Failed to update notify channel", err.Error(), nil)
 	}
+	// 更新配置时,将配置信息写入缓存
+	go func(payload *notify.NotifyConfig) {
+		key := fmt.Sprintf("%s:config:%d", notify.ConfigKey, payload.ID)
+		config.CahceClient.Del(context.Background(), key)
+		configData := map[string]interface{}{
+			"name":    payload.Name,
+			"channel": payload.Channel,
+			"config":  payload.Config,
+			"status":  payload.Status,
+		}
+		jsonData, err := json.Marshal(configData)
+		if err != nil {
+			slog.Error("marshal notify config data error", "error", err)
+			return
+		}
+		config.CahceClient.Set(context.Background(), key, jsonData, 24*time.Hour)
+	}(payload)
 	return pkg.NewAppResponse(c, fiber.StatusOK, 0, "Notify channel updated successfully", "", payload)
 }
 

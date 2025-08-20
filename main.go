@@ -27,6 +27,7 @@ import (
 	"saurfang/internal/models/user"
 	"saurfang/internal/route"
 	"saurfang/internal/tools"
+	"saurfang/internal/tools/ntfy"
 	"saurfang/internal/tools/pkg"
 	"strings"
 	"syscall"
@@ -86,6 +87,7 @@ func main() {
 			config.InitSynq()
 			// Redis
 			config.InitCache()
+			config.InitNtfy()
 			//Consul
 			config.InitConsul()
 			if serve {
@@ -165,6 +167,8 @@ func main() {
 				pkg.WarmUpNotifyCache()
 				// 启动计划任务管理器
 				go pkg.TaskManagerSetup()
+				// 启动通知订阅监听器
+				go ntfy.StartNotifySubscriber()
 				// 启动定时检查活跃间隔
 				//	go pkg.CheckActiveInterval(config.DB)
 				// 启动应用

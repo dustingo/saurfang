@@ -1,11 +1,16 @@
 package notifyhandler
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"log/slog"
 	"saurfang/internal/config"
 	"saurfang/internal/models/notify"
 	"saurfang/internal/repository/base"
 	"saurfang/internal/tools/pkg"
 	"strconv"
+	"time"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -30,6 +35,22 @@ func (n *NtfyHandler) Handler_CreateNotifySubscribe(c fiber.Ctx) error {
 	if err := n.Create(payload); err != nil {
 		return pkg.NewAppResponse(c, fiber.StatusInternalServerError, 1, "Failed to create notify subscribe", err.Error(), nil)
 	}
+	// 新建订阅时,将订阅信息写入缓存
+	go func(payload *notify.NotifySubscribe) {
+		key := fmt.Sprintf("%s:detail:%d", notify.SubscribeKey, payload.ID)
+		subData := map[string]interface{}{
+			"user_id":          payload.UserID,
+			"event_type":       payload.EventType,
+			"notify_config_id": payload.NotifyConfigID,
+			"status":           payload.Status,
+		}
+		jsonData, err := json.Marshal(subData)
+		if err != nil {
+			slog.Error("marshal notify subscribe data error", "error", err)
+			return
+		}
+		config.CahceClient.Set(context.Background(), key, jsonData, 24*time.Hour)
+	}(payload)
 	return pkg.NewAppResponse(c, fiber.StatusOK, 0, "Notify subscribe created successfully", "", payload)
 }
 
@@ -46,6 +67,25 @@ func (n *NtfyHandler) Handler_UpdateNotifySubscribe(c fiber.Ctx) error {
 	if err := n.Update(uint(id), payload); err != nil {
 		return pkg.NewAppResponse(c, fiber.StatusInternalServerError, 1, "Failed to update notify subscribe", err.Error(), nil)
 	}
+	// 更新订阅时,将订阅信息写入缓存
+	go func(payload *notify.NotifySubscribe) {
+		// 先删除缓存中的订阅记录
+		key := fmt.Sprintf("%s:detail:%d", notify.SubscribeKey, payload.ID)
+		config.CahceClient.Del(context.Background(), key)
+		// 再写入缓存
+		subData := map[string]interface{}{
+			"user_id":          payload.UserID,
+			"event_type":       payload.EventType,
+			"notify_config_id": payload.NotifyConfigID,
+			"status":           payload.Status,
+		}
+		jsonData, err := json.Marshal(subData)
+		if err != nil {
+			slog.Error("marshal notify subscribe data error", "error", err)
+			return
+		}
+		config.CahceClient.Set(context.Background(), key, jsonData, 24*time.Hour)
+	}(payload)
 	return pkg.NewAppResponse(c, fiber.StatusOK, 0, "Notify subscribe updated successfully", "", payload)
 }
 
