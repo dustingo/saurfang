@@ -257,9 +257,6 @@ func (l *LogicServerHandler) Handler_ShowChannelServerList(c fiber.Ctx) error {
 		Scan(&serverList).Error; err != nil {
 		return pkg.NewAppResponse(c, fiber.StatusInternalServerError, 1, "get server list failed", err.Error(), fiber.Map{})
 	}
-	for _, info := range serverList {
-		fmt.Println(info)
-	}
 	nodes := make(map[string]*serverconfig.ServerListNode)
 	for _, info := range serverList {
 		tools.GenerateSeverList(nodes, info.Channel, fmt.Sprintf("%s(%s)", info.Name, info.ServerID), info.ServerID)

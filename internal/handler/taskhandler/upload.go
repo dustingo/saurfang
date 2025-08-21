@@ -7,11 +7,14 @@ import (
 	"path"
 	"path/filepath"
 	"saurfang/internal/config"
+	"saurfang/internal/models/notify"
 	"saurfang/internal/models/upload"
 	"saurfang/internal/repository/base"
 	"saurfang/internal/tools"
+	"saurfang/internal/tools/ntfy"
 	"saurfang/internal/tools/pkg"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -51,11 +54,16 @@ func (u *UploadHandler) Handler_UploadServerPackage(c fiber.Ctx) error {
 	file := c.Query("file")
 	targetID, _ := strconv.Atoi(c.Query("target"))
 	startTime := time.Now()
+	var successCount, failCount int
+	var successJobs, failedJobs []string
+	var mu sync.Mutex
 	reader, writer := io.Pipe()
 	go func() {
 		defer writer.Close()
 		if _, err := os.Stat(path.Join(os.Getenv("SERVER_PACKAGE_SRC_PATH"), file)); err != nil {
 			writer.Write([]byte(fmt.Sprintf("[%v] ERROR 缺少服务器端文件\n", time.Now().Format("2006-01-02 13:04:05"))))
+			u.recordFailedJob(&mu, &failCount, &failedJobs, file)
+			return
 		}
 		writer.Write([]byte(fmt.Sprintf("[%v] INFO 清空目标目录 %s\n", time.Now().Format("2006-01-02 13:04:05"), os.Getenv("SERVER_PACKAGE_SRC_PATH"))))
 		files, err := filepath.Glob(path.Join(os.Getenv("SERVER_PACKAGE_DEST_PATH"), "*"))
@@ -66,17 +74,22 @@ func (u *UploadHandler) Handler_UploadServerPackage(c fiber.Ctx) error {
 			err = os.RemoveAll(f)
 			if err != nil {
 				writer.Write([]byte(fmt.Sprintf("[%v] ERROR 删除 %s 失败: %v\n", time.Now().Format("2006-01-02 13:04:05"), f, err.Error())))
+				u.recordFailedJob(&mu, &failCount, &failedJobs, file)
+				return
 			}
 		}
 		writer.Write([]byte(fmt.Sprintf("[%v] Success 清空目录成功\n", time.Now().Format("2006-01-02 13:04:05"))))
 		writer.Write([]byte(fmt.Sprintf("[%v] INFO 正在解压服务器端 %s 到 %s\n", time.Now().Format("2006-01-02 13:04:05"), file, os.Getenv("SERVER_PACKAGE_DEST_PATH"))))
 		if err := tools.SafeUnzip(path.Join(os.Getenv("SERVER_PACKAGE_SRC_PATH"), file), os.Getenv("SERVER_PACKAGE_DEST_PATH")); err != nil {
 			writer.Write([]byte(fmt.Sprintf("[%v] ERROR 解压服务器端失败 %s\n", time.Now().Format("2006-01-02 13:04:05"), err.Error())))
+			u.recordFailedJob(&mu, &failCount, &failedJobs, file)
+			return
 		}
 		entries, err := os.ReadDir(os.Getenv("SERVER_PACKAGE_DEST_PATH"))
 		if err != nil {
 			writer.Write([]byte(fmt.Sprintf("[%v] ERROR 获取资源列表失败 %s\n", time.Now().Format("2006-01-02 13:04:05"), err.Error())))
-
+			u.recordFailedJob(&mu, &failCount, &failedJobs, file)
+			return
 		}
 		for _, entry := range entries {
 			info, _ := entry.Info()
@@ -91,7 +104,8 @@ func (u *UploadHandler) Handler_UploadServerPackage(c fiber.Ctx) error {
 		p, s, err := tools.UploadToOss(targetID)
 		if err != nil {
 			writer.Write([]byte(fmt.Sprintf("[%v] ERROR 上传到存储失败: %s\n", time.Now().Format("2006-01-02 13:04:05"), err.Error())))
-
+			u.recordFailedJob(&mu, &failCount, &failedJobs, file)
+			return
 		} else {
 			record := upload.UploadRecord{
 				GameServer: file,
@@ -102,6 +116,8 @@ func (u *UploadHandler) Handler_UploadServerPackage(c fiber.Ctx) error {
 			config.DB.Create(&record)
 		}
 		writer.Write([]byte(fmt.Sprintf("[%v] Success 上传服务器端到存储成功  Path: %s \n", time.Now().Format("2006-01-02 13:04:05"), p)))
+		u.recordSuccessJob(&mu, &successCount, &successJobs, file)
+		ntfy.PublishNotification(notify.EventTypeUpload, fmt.Sprintf("upload %s", file), successJobs, failedJobs, successCount, failCount)
 	}()
 	return c.SendStream(reader)
 }
@@ -129,4 +145,20 @@ func (*UploadHandler) setSSEHeaders(ctx fiber.Ctx) {
 	ctx.Set("Transfer-Encoding", "chunked")
 	ctx.Set("Access-Control-Allow-Origin", "*")
 	ctx.Set("Access-Control-Allow-Headers", "Cache-Control")
+}
+
+// recordFailedJob 记录失败的任务
+func (n *UploadHandler) recordFailedJob(mu *sync.Mutex, failCount *int, failedJobs *[]string, key string) {
+	mu.Lock()
+	defer mu.Unlock()
+	*failCount++
+	*failedJobs = append(*failedJobs, key)
+}
+
+// recordSuccessJob 记录成功的任务
+func (n *UploadHandler) recordSuccessJob(mu *sync.Mutex, successCount *int, successJobs *[]string, key string) {
+	mu.Lock()
+	defer mu.Unlock()
+	*successCount++
+	*successJobs = append(*successJobs, key)
 }

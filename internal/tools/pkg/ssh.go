@@ -3,8 +3,6 @@ package pkg
 import (
 	"bytes"
 	"fmt"
-	"github.com/pkg/sftp"
-	"golang.org/x/crypto/ssh"
 	"html/template"
 	"io"
 	"log"
@@ -12,6 +10,9 @@ import (
 	"path/filepath"
 	"saurfang/internal/models/serverconfig"
 	"time"
+
+	"github.com/pkg/sftp"
+	"golang.org/x/crypto/ssh"
 )
 
 var originPath, tempPath string
@@ -222,7 +223,6 @@ func ProcessServer(config serverconfig.Configs) error {
 	if err != nil {
 		return fmt.Errorf("write temp file failed: %w", err)
 	}
-	fmt.Println("tem file name = ", tempFile.Name())
 	// 将配置好的配置文件传发送到远程服务器
 	if err := sftpClient.UploadFile(tempFile.Name(), config.ConfigFile); err != nil {
 		return fmt.Errorf("upload temp file failed: %w", err)

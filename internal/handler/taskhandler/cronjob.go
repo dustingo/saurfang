@@ -105,7 +105,8 @@ func (j *CronjobHandler) Handler_UpdateCronjobTask(c fiber.Ctx) error {
 		cronJob.ServerOperation = payload.ServerOperation
 	}
 
-	if err := j.Update(uint(id), &cronJob); err != nil {
+	// 使用 Select 明确指定要更新的字段，包括零值字段 TaskStatus
+	if err := j.DB.Model(&cronJob).Where("id = ?", uint(id)).Select("task_name", "spec", "task_type", "task_status", "custom_task_id", "server_ids", "server_operation").Updates(&cronJob).Error; err != nil {
 		return pkg.NewAppResponse(c, fiber.StatusInternalServerError, 1, "更新计划任务失败", err.Error(), nil)
 	}
 

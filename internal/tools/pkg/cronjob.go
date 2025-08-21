@@ -12,9 +12,11 @@ import (
 	"time"
 
 	"saurfang/internal/config"
+	"saurfang/internal/models/notify"
 	"saurfang/internal/models/serverconfig"
 	"saurfang/internal/models/task"
 	"saurfang/internal/tools"
+	"saurfang/internal/tools/ntfy"
 
 	"github.com/hibiken/asynq"
 	"gorm.io/gorm"
@@ -139,7 +141,6 @@ func ServerOperationHandler(ctx context.Context, at *asynq.Task) error {
 			serverIDs = append(serverIDs, strID)
 		}
 	}
-
 	// 更新最后执行时间
 	defer func() {
 		if err := config.DB.Model(&task.CronJobs{}).Where("id = ?", uint(cronJobID)).Update("last_execution", execTime).Error; err != nil {
@@ -157,15 +158,19 @@ func ServerOperationHandler(ctx context.Context, at *asynq.Task) error {
 	if err != nil {
 		return fmt.Errorf("failed to create nomad client: %v", err)
 	}
+	//消息
+	var successCount, failCount int
+	var successJobs, failedJobs []string
 	// 执行服务器操作
-	successCount := 0
-	failedCount := 0
+	// successCount := 0
+	// failedCount := 0
 	var errors []string
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	for _, serverID := range serverIDs {
 		wg.Add(1)
-		go func(serverID string, failedCount *int, successCount *int, errors *[]string, wg *sync.WaitGroup, mu *sync.Mutex) {
+		go func(serverID string, failedCount *int, successCount *int, errors *[]string, wg *sync.WaitGroup, mu *sync.Mutex, successJobs, failedJobs *[]string) {
+			//go func(serverID string, failedCount *int, successCount *int, errors *[]string, wg *sync.WaitGroup, mu *sync.Mutex) {
 			defer wg.Done()
 			// 从 Consul 获取服务器配置
 			configKey := tools.AddNamespace(serverID, os.Getenv("GAME_NOMAD_JOB_NAMESPACE"))
@@ -174,6 +179,7 @@ func ServerOperationHandler(ctx context.Context, at *asynq.Task) error {
 				mu.Lock()
 				*errors = append(*errors, fmt.Sprintf("Failed to get config for server %s: %v", serverID, err))
 				*failedCount++
+				*failedJobs = append(*failedJobs, serverID)
 				mu.Unlock()
 				return
 			}
@@ -181,6 +187,7 @@ func ServerOperationHandler(ctx context.Context, at *asynq.Task) error {
 				mu.Lock()
 				*errors = append(*errors, fmt.Sprintf("No config found for server %s", serverID))
 				*failedCount++
+				*failedJobs = append(*failedJobs, serverID)
 				mu.Unlock()
 				return
 			}
@@ -202,6 +209,7 @@ func ServerOperationHandler(ctx context.Context, at *asynq.Task) error {
 					mu.Lock()
 					*errors = append(*errors, fmt.Sprintf("Failed to parse job hcl config file: %v", err))
 					*failedCount++
+					*failedJobs = append(*failedJobs, serverID)
 					mu.Unlock()
 					return
 				}
@@ -210,11 +218,13 @@ func ServerOperationHandler(ctx context.Context, at *asynq.Task) error {
 					mu.Lock()
 					*errors = append(*errors, fmt.Sprintf("Failed to register job: %v", err))
 					*failedCount++
+					*failedJobs = append(*failedJobs, serverID)
 					mu.Unlock()
 					return
 				}
 				mu.Lock()
 				*successCount++
+				*successJobs = append(*successJobs, serverID)
 				mu.Unlock()
 				slog.Info("start nomad ops job success", "server_id", serverID)
 				config.DB.Exec("UPDATE games set status = 1 where server_id = ?;", serverID)
@@ -230,6 +240,7 @@ func ServerOperationHandler(ctx context.Context, at *asynq.Task) error {
 					mu.Lock()
 					*errors = append(*errors, fmt.Sprintf("Failed to parse job hcl config file: %v", err))
 					*failedCount++
+					*failedJobs = append(*failedJobs, serverID)
 					mu.Unlock()
 					return
 				}
@@ -238,21 +249,23 @@ func ServerOperationHandler(ctx context.Context, at *asynq.Task) error {
 					mu.Lock()
 					*errors = append(*errors, fmt.Sprintf("Failed to register job: %v", err))
 					*failedCount++
+					*failedJobs = append(*failedJobs, serverID)
 					mu.Unlock()
 					return
 				}
 				mu.Lock()
 				*successCount++
+				*successJobs = append(*successJobs, serverID)
 				mu.Unlock()
 				slog.Info("stop nomad ops job success", "server_id", serverID)
 				config.DB.Exec("UPDATE games set status = 0 where server_id = ?;", serverID)
 				return
 			}
-
-		}(serverID, &failedCount, &successCount, &errors, &wg, &mu)
+		}(serverID, &failCount, &successCount, &errors, &wg, &mu, &successJobs, &failedJobs)
 	}
 	wg.Wait()
 	// 如果有错误，返回所有错误信息
+	ntfy.PublishNotification(notify.EventTypeCronJob, fmt.Sprintf("game %s", cronJob.TaskName), successJobs, failedJobs, successCount, failCount)
 	if len(errors) > 0 {
 		return fmt.Errorf("server operation failed: %s", strings.Join(errors, "; "))
 	}

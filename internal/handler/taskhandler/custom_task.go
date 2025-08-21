@@ -6,11 +6,14 @@ import (
 	"log/slog"
 	"os"
 	"saurfang/internal/config"
+	"saurfang/internal/models/notify"
 	"saurfang/internal/models/task"
 	"saurfang/internal/repository/base"
+	"saurfang/internal/tools/ntfy"
 	"saurfang/internal/tools/pkg"
 	"strconv"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 
@@ -124,6 +127,9 @@ func (h *CustomTaskHandler) ExecuteCustomTaskAsync(customTask *task.CustomTask, 
 		*execution.EndTime = time.Now()
 		config.DB.Save(execution)
 	}()
+	var successCount, failCount int
+	var successJobs, failedJobs []string
+	var mu sync.Mutex
 
 	// 解析目标主机
 	targetHosts := h.parseTargetHosts(customTask.TargetHosts)
@@ -147,12 +153,13 @@ func (h *CustomTaskHandler) ExecuteCustomTaskAsync(customTask *task.CustomTask, 
 		if err != nil {
 			slog.Error("Failed to generate job spec for host", "host", host, "error", err)
 			dispatchResults = append(dispatchResults, fmt.Sprintf("Failed to generate job spec for %s: %v", host, err))
+			h.recordFailedJob(&mu, &failCount, &failedJobs, host)
 			continue
 		}
 
 		// 保存Job HCL到Consul（使用主机特定的key）
 		consulKey := fmt.Sprintf("custom_job/%d_%s", customTask.ID, host)
-		if err := h.saveJobHCLToConsulWithKey(&hostTask, jobSpec, consulKey); err != nil {
+		if err = h.saveJobHCLToConsulWithKey(&hostTask, jobSpec, consulKey); err != nil {
 			slog.Warn("Failed to save job HCL to Consul", "host", host, "error", err)
 			// 不阻止任务执行，只记录警告
 		}
@@ -162,6 +169,7 @@ func (h *CustomTaskHandler) ExecuteCustomTaskAsync(customTask *task.CustomTask, 
 		if err != nil {
 			slog.Error("Failed to parse job spec for host", "host", host, "error", err)
 			dispatchResults = append(dispatchResults, fmt.Sprintf("Failed to parse job spec for %s: %v", host, err))
+			h.recordFailedJob(&mu, &failCount, &failedJobs, host)
 			continue
 		}
 
@@ -173,12 +181,16 @@ func (h *CustomTaskHandler) ExecuteCustomTaskAsync(customTask *task.CustomTask, 
 		if err != nil {
 			slog.Error("Failed to register job for host", "host", host, "error", err)
 			dispatchResults = append(dispatchResults, fmt.Sprintf("Failed to register job for %s: %v", host, err))
+			h.recordFailedJob(&mu, &failCount, &failedJobs, host)
+
 		} else {
 			// 使用Nomad返回的job ID
 			jobIDs = append(jobIDs, *job.ID)
 			dispatchResults = append(dispatchResults, fmt.Sprintf("Registered job for %s: %s (eval: %s)", host, *job.ID, resp.EvalID))
+			h.recordSuccessJob(&mu, &successCount, &successJobs, host)
 		}
 	}
+	ntfy.PublishNotification(notify.EventTypeCustomJob, fmt.Sprintf("custom task %s", customTask.Name), successJobs, failedJobs, successCount, failCount)
 
 	// 存储所有Job ID，用逗号分隔
 	execution.NomadJobID = strings.Join(jobIDs, ",")
@@ -577,11 +589,6 @@ func (h *CustomTaskHandler) formatHCL(hclContent string) (string, error) {
 	return string(f.Bytes()), nil
 }
 
-// saveJobHCLToConsul 保存Job HCL到Consul
-// func (h *CustomTaskHandler) saveJobHCLToConsul(customTask *task.CustomTask, jobSpec string) error {
-// 	return h.saveJobHCLToConsulWithKey(customTask, jobSpec, fmt.Sprintf("custom_job/%d", customTask.ID))
-// }
-
 // saveJobHCLToConsulWithKey 保存Job HCL到Consul（指定key）
 func (h *CustomTaskHandler) saveJobHCLToConsulWithKey(customTask *task.CustomTask, jobSpec string, key string) error {
 	// 格式化HCL配置
@@ -667,4 +674,20 @@ func (h *CustomTaskHandler) Handler_ListExecutions(c fiber.Ctx) error {
 	return pkg.NewAppResponse(c, fiber.StatusOK, 0, "success", "", fiber.Map{
 		"executions": executions,
 	})
+}
+
+// recordFailedJob 记录失败的任务
+func (h *CustomTaskHandler) recordFailedJob(mu *sync.Mutex, failCount *int, failedJobs *[]string, key string) {
+	mu.Lock()
+	defer mu.Unlock()
+	*failCount++
+	*failedJobs = append(*failedJobs, key)
+}
+
+// recordSuccessJob 记录成功的任务
+func (h *CustomTaskHandler) recordSuccessJob(mu *sync.Mutex, successCount *int, successJobs *[]string, key string) {
+	mu.Lock()
+	defer mu.Unlock()
+	*successCount++
+	*successJobs = append(*successJobs, key)
 }

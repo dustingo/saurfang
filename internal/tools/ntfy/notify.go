@@ -10,25 +10,12 @@ import (
 	"saurfang/internal/models/notify"
 	"strings"
 	"time"
-
-	"github.com/nikoksr/notify/service/dingding"
 )
 
 // Notification 通知消息的数据结构
 type Notification struct {
 	Type    string `json:"type"`
 	Message string `json:"message"`
-}
-
-// EmailNotification 邮件通知
-type EmailNotification struct {
-	To []string
-}
-
-// DingTalkNotification 钉钉通知
-type DingTalkNotification struct {
-	Token  string `json:"token"`
-	Secret string `json:"secret"`
 }
 
 // WeChatNotification 企业微信通知
@@ -48,33 +35,6 @@ type HTTPNotification struct {
 	Message     string
 }
 
-// LarkNotification 飞书通知
-type LarkNotification struct {
-	URL     string
-	Message string
-}
-
-func (n *EmailNotification) Send() error {
-	slog.Info("send email notification", "to", n.To)
-	return nil
-}
-
-// Send 发送钉钉通知
-func (n *DingTalkNotification) Send(subject string, message string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	cfg := dingding.Config{
-		Token:  n.Token,
-		Secret: n.Secret,
-	}
-	dingdingSvc := dingding.New(&cfg)
-	err := dingdingSvc.Send(ctx, subject, message)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func (n *WeChatNotification) Send() error {
 	slog.Info("send wechat notification", "appid", n.AppID, "appsecret", n.AppSecret, "token", n.Token, "encodingaeskey", n.EncodingAESKey)
 
@@ -83,12 +43,6 @@ func (n *WeChatNotification) Send() error {
 
 func (n *HTTPNotification) Send() error {
 	slog.Info("send http notification", "url", n.URL, "header", n.Header, "contenttype", n.ContentType)
-
-	return nil
-}
-
-func (n *LarkNotification) Send() error {
-	slog.Info("send lark notification", "url", n.URL)
 
 	return nil
 }
@@ -192,14 +146,32 @@ func handleNotifyEvent(eventType string, message string) {
 		switch configs.Channel {
 		case notify.ChannelDingTalk:
 			var dingtalk DingTalkNotification
-			fmt.Printf("config Type is %T", configs.Config)
-			fmt.Println("configs = ", configs.Config)
 			if err = json.Unmarshal([]byte(configs.Config), &dingtalk); err != nil {
 				slog.Error("unmarshal dingtalk notification config error", "error", err)
 				continue
 			}
 			if err = dingtalk.Send(fmt.Sprintf("📢:%s", eventType), message); err != nil {
 				slog.Error("send dingtalk notification error", "error", err)
+				continue
+			}
+		case notify.ChannelEmail:
+			var email EmailNotification
+			if err = json.Unmarshal([]byte(configs.Config), &email); err != nil {
+				slog.Error("unmarshal email notification config error", "error", err)
+				continue
+			}
+			if err = email.Send(fmt.Sprintf("📢:%s", eventType), message); err != nil {
+				slog.Error("send email notification error", "error", err)
+				continue
+			}
+		case notify.ChannelLark:
+			var lark LarkNotification
+			if err = json.Unmarshal([]byte(configs.Config), &lark); err != nil {
+				slog.Error("unmarshal lark notification config error", "error", err)
+				continue
+			}
+			if err = lark.Send(fmt.Sprintf("📢:%s", eventType), message); err != nil {
+				slog.Error("send lark notification error", "error", err)
 				continue
 			}
 		default:

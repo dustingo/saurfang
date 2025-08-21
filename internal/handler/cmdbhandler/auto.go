@@ -148,7 +148,6 @@ func (a *AutoSyncHandler) AutoSyncAliYunEcs(target string) error {
 		for _, server := range cloudServer.Instances.Instance {
 			if hashstring, ok := localServerMap[server.InstanceId]; ok {
 				if pkg.Hash(fmt.Sprintf("%s-%s-%s-%s-%s-%s", server.InstanceId, strconv.Itoa(server.Cpu), strconv.Itoa(server.Memory), pkg.SingleIP(server.VpcAttributes.PrivateIpAddress.IPAddress), pkg.SingleIP(server.PublicIpAddress.IpAddress), server.InstanceName)) != hashstring {
-					//fmt.Println("[!=]", ip(server.PublicIpAddress.IpAddress), ip(server.VpcAttributes.PrivateIpAddress.IPAddress))
 					sql := fmt.Sprintf("UPDATE hosts SET hostname = '%s',public_ip = '%s',private_ip = '%s',cpu='%s',memory='%s',os_name='%s' WHERE instance_id = '%s';",
 						server.InstanceName, pkg.SingleIP(server.PublicIpAddress.IpAddress), pkg.SingleIP(server.VpcAttributes.PrivateIpAddress.IPAddress), strconv.Itoa(server.Cpu),
 						strconv.Itoa(server.Memory), server.OSName, server.InstanceId)
