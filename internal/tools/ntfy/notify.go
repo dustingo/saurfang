@@ -18,35 +18,6 @@ type Notification struct {
 	Message string `json:"message"`
 }
 
-// WeChatNotification 企业微信通知
-type WeChatNotification struct {
-	AppID          string
-	AppSecret      string
-	Token          string
-	EncodingAESKey string
-	Message        string
-}
-
-// HTTPNotification HTTP通知
-type HTTPNotification struct {
-	URL         string
-	Header      map[string]string
-	ContentType string
-	Message     string
-}
-
-func (n *WeChatNotification) Send() error {
-	slog.Info("send wechat notification", "appid", n.AppID, "appsecret", n.AppSecret, "token", n.Token, "encodingaeskey", n.EncodingAESKey)
-
-	return nil
-}
-
-func (n *HTTPNotification) Send() error {
-	slog.Info("send http notification", "url", n.URL, "header", n.Header, "contenttype", n.ContentType)
-
-	return nil
-}
-
 // PublishNotification 发布消息
 func PublishNotification(eventType, taskType string, successJobs []string, failedJobs []string, successCount int, failedCount int) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

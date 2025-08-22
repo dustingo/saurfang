@@ -125,7 +125,11 @@ func (h *CustomTaskHandler) ExecuteCustomTaskAsync(customTask *task.CustomTask, 
 	defer func() {
 		execution.EndTime = &time.Time{}
 		*execution.EndTime = time.Now()
-		config.DB.Save(execution)
+		config.DB.Model(execution).Updates(map[string]interface{}{
+			"status":   execution.Status,
+			"end_time": execution.EndTime,
+		})
+
 	}()
 	var successCount, failCount int
 	var successJobs, failedJobs []string

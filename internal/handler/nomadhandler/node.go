@@ -256,6 +256,7 @@ func (n *NomadHandler) Handler_DeployNomadOpsJob(ctx fiber.Ctx) error {
 // Handler_DeployNomadJob 执行nomad一次性任务dispatch
 func (n *NomadHandler) Handler_DeployNomadJob(ctx fiber.Ctx) error {
 	n.setSSEHeaders(ctx)
+	var mu sync.Mutex
 	serverIDs := ctx.Query("server_ids")
 	keys := strings.Split(serverIDs, ",")
 	if len(keys) == 0 {
@@ -264,6 +265,8 @@ func (n *NomadHandler) Handler_DeployNomadJob(ctx fiber.Ctx) error {
 	if len(keys) > 200 {
 		return pkg.NewAppResponse(ctx, fiber.StatusBadRequest, 1, "server_ids is too many", "", nil)
 	}
+	var successCount, failCount int
+	var successJobs, failedJobs []string
 	messageChan := make(chan string, 200)
 	results := make(chan task.JobResult, len(keys))
 	go func() {
@@ -277,10 +280,12 @@ func (n *NomadHandler) Handler_DeployNomadJob(ctx fiber.Ctx) error {
 			pair, _, err := kv.Get(tools.AddNamespace(key, n.Ns), nil)
 			if err != nil {
 				messageChan <- fmt.Sprintf("data: [X] search config file failed. id: %s\n\n", key)
+				n.recordFailedJob(&mu, &failCount, &failedJobs, key)
 				continue
 			}
 			if pair == nil {
 				messageChan <- fmt.Sprintf("data: [X] config file not found. id: %s\n\n", key)
+				n.recordFailedJob(&mu, &failCount, &failedJobs, key)
 				continue
 			}
 			content[key] = strings.TrimRight(string(pair.Value), "\r")
@@ -296,6 +301,7 @@ func (n *NomadHandler) Handler_DeployNomadJob(ctx fiber.Ctx) error {
 				job, err := n.Nomad.Jobs().ParseHCL(v, true)
 				if err != nil {
 					messageChan <- fmt.Sprintf("data: [X] parse job hcl config file failed. id: %s\n\n", k)
+					n.recordFailedJob(&mu, &failCount, &failedJobs, k)
 					continue
 				}
 				wg.Add(1)
@@ -304,6 +310,8 @@ func (n *NomadHandler) Handler_DeployNomadJob(ctx fiber.Ctx) error {
 					_, _, err := n.Nomad.Jobs().Register(j, nil)
 					if err != nil {
 						messageChan <- fmt.Sprintf("data: [X] register dispatch job failed. key: %s job: %s, error: %v\n\n", serverID, *j.ID, err)
+						n.recordFailedJob(&mu, &failCount, &failedJobs, k)
+
 						return
 					}
 					meta := make(map[string]string)
@@ -311,10 +319,12 @@ func (n *NomadHandler) Handler_DeployNomadJob(ctx fiber.Ctx) error {
 					res, _, err := n.Nomad.Jobs().Dispatch(*j.ID, meta, []byte(time.Now().String()), "", nil)
 					if err != nil {
 						messageChan <- fmt.Sprintf("data: [X] deploy job failed. key: %s job: %s, error: %v\n\n", serverID, *j.ID, err)
+						n.recordFailedJob(&mu, &failCount, &failedJobs, k)
 						waitEvalCompletion(n.Nomad, serverID, res.EvalID, 120*time.Second, messageChan, results)
 						return
 					}
 					waitEvalCompletion(n.Nomad, serverID, res.EvalID, 120*time.Second, messageChan, results)
+					n.recordSuccessJob(&mu, &successCount, &successJobs, k)
 					messageChan <- fmt.Sprintf("data: [√] deploy job success. key: %s job: %s, evalID: %s\n\n", serverID, *j.ID, res.EvalID)
 				}(job, k)
 			}
@@ -326,6 +336,7 @@ func (n *NomadHandler) Handler_DeployNomadJob(ctx fiber.Ctx) error {
 		messageChan <- fmt.Sprintln(tools.FormatLine("Job [result]", "*"))
 		headers := []string{"EvalID", "JobID", "Type", "Status", "TriggeredBy"}
 		drawTable(results, headers, messageChan)
+		ntfy.PublishNotification(notify.EventTypeGameDeploy, fmt.Sprintln("deploy game server"), successJobs, failedJobs, successCount, failCount)
 	}()
 	//return ctx.SendStream(reader)
 	// 实时发送消息到客户端

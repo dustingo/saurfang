@@ -220,7 +220,7 @@ func main() {
 					var existing user.Role
 					if err := config.DB.Table("roles").Where("name = ?", role.Name).First(&existing).Error; err != nil {
 						if errors.Is(err, gorm.ErrRecordNotFound) {
-							if err := config.DB.Table("roles").Create(&role).Error; err != nil {
+							if err = config.DB.Table("roles").Create(&role).Error; err != nil {
 								log.Fatalln("Create role failed:", err)
 							}
 						} else {

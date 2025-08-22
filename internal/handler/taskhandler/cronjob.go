@@ -329,11 +329,12 @@ func CustonCronjobHandler(ctx context.Context, at *asynq.Task) error {
 	if err := config.DB.First(&customTask, uint(customTaskID)).Error; err != nil {
 		return fmt.Errorf("custom task not found: %v", err)
 	}
+	startTime := time.Now()
 	// 创建执行记录
 	execution := task.CustomTaskExecution{
 		TaskID:        uint(customTaskID),
 		Status:        "pending",
-		StartTime:     time.Now(),
+		StartTime:     startTime,
 		CheckInterval: 10, // 10秒检查一次
 		MaxCheckCount: 60, // 最多检查60次（10分钟）
 	}
@@ -342,6 +343,7 @@ func CustonCronjobHandler(ctx context.Context, at *asynq.Task) error {
 	}
 	customTaskExecuter := NewCustomTaskHandler()
 	go customTaskExecuter.ExecuteCustomTaskAsync(&customTask, &execution)
+	config.DB.Table("cron_jobs").Where("id = ?", customTaskID).Update("last_execution", startTime)
 	costomTaskMonitor, err := pkg.NewNomadMonitor()
 	if err != nil {
 		slog.Error("failed to create nomad job monitor", "error", err)
