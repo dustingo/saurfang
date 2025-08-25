@@ -77,10 +77,23 @@ func UserAuth() fiber.Handler {
 		}
 	}
 }
+
+// hasPermission 检查角色是否有该权限
 func hasPermission(roleid uint, path string) bool {
 	key := fmt.Sprintf("role_permission:%d", roleid)
 	if exists, _ := config.CahceClient.Exists(context.Background(), key).Result(); exists < 1 {
-		return false
+		// 重新从数据库加载
+		if err := pkg.WarmUpCache(); err != nil {
+			return false
+		}
+		// 再次从缓存中查询,如果还是不存在,就返回错误
+		exists, err := config.CahceClient.Exists(context.Background(), key).Result()
+		if err != nil {
+			return false
+		}
+		if exists < 1 {
+			return false
+		}
 	}
 	// 检查缓存中是否存在该权限
 	exists, err := config.CahceClient.SIsMember(context.Background(), key, path).Result()
@@ -91,7 +104,7 @@ func hasPermission(roleid uint, path string) bool {
 		return true
 	}
 	// cache不存在就从数据库中加载
-	if err := pkg.LoadPermissionToRedis(roleid); err != nil {
+	if err = pkg.LoadPermissionToRedis(roleid); err != nil {
 		return false
 	}
 	// 再次从缓存中查询,如果还是不存在,就返回错误
