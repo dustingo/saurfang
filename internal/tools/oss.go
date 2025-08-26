@@ -12,7 +12,7 @@ import (
 
 func UploadToOss(target int) (path, source string, err error) {
 	var ossInfo datasource.Datasources
-	if err := config.DB.Raw("select * from datasources where id = ?;", target).Scan(&ossInfo).Error; err != nil {
+	if err = config.DB.Raw("select * from datasources where id = ?;", target).Scan(&ossInfo).Error; err != nil {
 		return "", "", err
 	}
 	args := []string{

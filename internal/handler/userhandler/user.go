@@ -2,8 +2,9 @@ package userhandler
 
 import (
 	"encoding/json"
-	"log"
+	"errors"
 	"os"
+	"regexp"
 	"saurfang/internal/config"
 	"saurfang/internal/models/amis"
 	"saurfang/internal/models/dashboard"
@@ -18,6 +19,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gofiber/fiber/v3"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
@@ -25,6 +27,47 @@ type UserHandler struct {
 	base.BaseGormRepository[user.User]
 }
 
+// validateUsername 校验用户名合法性
+// 用户名规则：
+// 1. 长度3-20个字符
+// 2. 只能包含字母、数字、下划线
+// 3. 必须以字母开头
+// 4. 不能以下划线结尾
+func validateUsername(username string) error {
+	// 检查长度
+	if len(username) < 3 || len(username) > 20 {
+		return errors.New("用户名长度必须在3-20个字符之间")
+	}
+
+	// 检查是否为空或只包含空格
+	if strings.TrimSpace(username) == "" {
+		return errors.New("用户名不能为空")
+	}
+
+	// 检查字符组成：只能包含字母、数字、下划线
+	validChars := regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_]*[a-zA-Z0-9]$|^[a-zA-Z]$`)
+	if !validChars.MatchString(username) {
+		return errors.New("用户名只能包含字母、数字、下划线，必须以字母开头，不能以下划线结尾")
+	}
+
+	// 检查是否包含连续的下划线
+	if strings.Contains(username, "__") {
+		return errors.New("用户名不能包含连续的下划线")
+	}
+
+	// 检查保留关键字
+	reservedWords := []string{"admin", "root", "user", "test", "guest", "null", "undefined", "system", "api", "www"}
+	usernameLower := strings.ToLower(username)
+	for _, reserved := range reservedWords {
+		if usernameLower == reserved {
+			return errors.New("用户名不能使用保留关键字")
+		}
+	}
+
+	return nil
+}
+
+// Handler_CreateRole 创建角色
 func (u *UserHandler) Handler_CreateRole(c fiber.Ctx) error {
 	var payload user.RolePayload
 	if err := c.Bind().Body(&payload); err != nil {
@@ -35,6 +78,8 @@ func (u *UserHandler) Handler_CreateRole(c fiber.Ctx) error {
 	}
 	return pkg.NewAppResponse(c, fiber.StatusOK, 0, "success", "", fiber.Map{})
 }
+
+// Handler_DeleteRole 删除角色
 func (u *UserHandler) Handler_DeleteRole(c fiber.Ctx) error {
 	id, _ := strconv.Atoi(c.Params("id"))
 	if err := u.DB.Table("roles").Where("id = ?", uint(id)).Delete(&user.Role{}).Error; err != nil {
@@ -42,6 +87,8 @@ func (u *UserHandler) Handler_DeleteRole(c fiber.Ctx) error {
 	}
 	return pkg.NewAppResponse(c, fiber.StatusOK, 0, "success", "", fiber.Map{})
 }
+
+// Handler_ListRole 获取角色列表
 func (u *UserHandler) Handler_ListRole(c fiber.Ctx) error {
 	var roles []user.Role
 	// 查询所有角色并预加载权限
@@ -79,6 +126,8 @@ func (u *UserHandler) Handler_ListRole(c fiber.Ctx) error {
 		"items": roleResponses,
 	})
 }
+
+// Handler_ListUser 获取用户列表
 func (u *UserHandler) Handler_ListUser(c fiber.Ctx) error {
 	var users []user.UserInfo
 	if err := u.DB.Raw("select u.username ,ur.`role_id`,r.`name`,u.id  from users u INNER join user_roles ur On u.`id` = ur.`user_id` INNER JOIN `roles`r  ON r.`id` = ur.`role_id`").Scan(&users).Error; err != nil {
@@ -86,6 +135,8 @@ func (u *UserHandler) Handler_ListUser(c fiber.Ctx) error {
 	}
 	return pkg.NewAppResponse(c, fiber.StatusOK, 0, "success", "", users)
 }
+
+// Handler_ChangePassword 修改密码
 func (u *UserHandler) Handler_ChangePassword(c fiber.Ctx) error {
 	payload := struct {
 		OldPassword string `json:"oldPassword"`
@@ -113,6 +164,8 @@ func (u *UserHandler) Handler_ChangePassword(c fiber.Ctx) error {
 	}
 	return pkg.NewAppResponse(c, fiber.StatusOK, 0, "success", "", fiber.Map{})
 }
+
+// Handler_SelectUser 获取用户列表
 func (u *UserHandler) Handler_SelectUser(c fiber.Ctx) error {
 	var users []user.UserInfo
 	if err := u.DB.Table("users").Find(&users).Error; err != nil {
@@ -129,6 +182,8 @@ func (u *UserHandler) Handler_SelectUser(c fiber.Ctx) error {
 		"options": ops,
 	})
 }
+
+// Handler_UserMapping 获取用户映射
 func (u *UserHandler) Handler_UserMapping(c fiber.Ctx) error {
 	var usermapping map[string]interface{} = make(map[string]interface{})
 	var users []user.UserInfo
@@ -226,6 +281,7 @@ func (u *UserHandler) Handler_SelectPermission(c fiber.Ctx) error {
 	})
 }
 
+// Handler_PermissionGroupSelect 变更角色权限是选择权限组
 func (u *UserHandler) Handler_PermissionGroupSelect(c fiber.Ctx) error {
 	var permissons []user.Permission
 	if err := u.DB.Table("permissions").Find(&permissons).Error; err != nil {
@@ -289,34 +345,61 @@ func (u *UserHandler) Handler_UserRegister(c fiber.Ctx) error {
 		return pkg.NewAppResponse(c, fiber.StatusBadRequest, 1, "bind payload error", err.Error(), fiber.Map{})
 	}
 	payload.Username = strings.TrimSpace(payload.Username)
+	// 校验用户名合法性
+	if err := validateUsername(payload.Username); err != nil {
+		return pkg.NewAppResponse(c, fiber.StatusBadRequest, 1, "username validation failed", err.Error(), fiber.Map{})
+	}
 	if payload.Code == "" {
 		return pkg.NewAppResponse(c, fiber.StatusBadRequest, 1, "invite code is required", "", fiber.Map{})
 	}
 	var codes user.InviteCodes
 	if err := u.DB.Table("invite_codes").Where("code = ?", payload.Code).First(&codes).Error; err != nil {
-		return pkg.NewAppResponse(c, fiber.StatusInternalServerError, 1, "invite code internal error", err.Error(), fiber.Map{})
+
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return pkg.NewAppResponse(c, fiber.StatusBadRequest, 1, "invite code not found", "", fiber.Map{})
+		}
+		return pkg.NewAppResponse(c, fiber.StatusInternalServerError, 1, "invite code query error", err.Error(), fiber.Map{})
 	}
 	if codes.Used == 1 {
 		return pkg.NewAppResponse(c, fiber.StatusBadRequest, 1, "invite code already used", "", fiber.Map{})
 	}
 
-	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(payload.Password), 10)
-	payload.Password = string(hashedPassword)
-	result := u.DB.Table("users").Where("username = ?", payload.Username).FirstOrCreate(&payload)
-	if result.Error != nil {
-		return pkg.NewAppResponse(c, fiber.StatusInternalServerError, 1, "fail to create user", result.Error.Error(), fiber.Map{})
-	}
-	if result.RowsAffected > 0 {
-		if err := config.DB.Table("user_roles").Create(&user.UserRole{UserID: payload.ID, RoleID: 4}).Error; err != nil {
-			log.Println("初始用户角色失败：", err.Error())
+	// 先检查用户是否已存在
+	var existingUser user.User
+	if err := u.DB.Where("username = ?", payload.Username).First(&existingUser).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			// 用户不存在，创建新用户 - 使用原始SQL避免关联关系问题
+			hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(payload.Password), 10)
+
+			// 直接插入用户记录
+			if err = u.DB.Exec("INSERT INTO users (username, password, created_at, updated_at) VALUES (?, ?, NOW(), NOW())",
+				payload.Username, string(hashedPassword)).Error; err != nil {
+				return pkg.NewAppResponse(c, fiber.StatusInternalServerError, 1, "fail to create user", err.Error(), fiber.Map{})
+			}
+
+			// 获取新创建用户的ID
+			var newUser user.User
+			if err = u.DB.Where("username = ?", payload.Username).First(&newUser).Error; err != nil {
+				return pkg.NewAppResponse(c, fiber.StatusInternalServerError, 1, "fail to get new user", err.Error(), fiber.Map{})
+			}
+
+			// 分配默认角色
+			if err = u.DB.Exec("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)", newUser.ID, 4).Error; err != nil {
+				return pkg.NewAppResponse(c, fiber.StatusInternalServerError, 1, "fail to set user role", err.Error(), fiber.Map{})
+			}
+		} else {
+			return pkg.NewAppResponse(c, fiber.StatusInternalServerError, 1, "fail to check user existence", err.Error(), fiber.Map{})
 		}
+	} else {
+		// 用户已存在
+		return pkg.NewAppResponse(c, fiber.StatusBadRequest, 1, "user already exists", "", fiber.Map{})
 	}
-	if err := u.DB.Model(&user.InviteCodes{}).Where("code = ?", payload.Code).Update("used", 1).Error; err != nil {
-		log.Println("update user invite code error:", err)
+	if err := u.DB.Exec("UPDATE invite_codes SET used = 1 WHERE code = ?", payload.Code).Error; err != nil {
+		return pkg.NewAppResponse(c, fiber.StatusInternalServerError, 1, "fail to update invite code", err.Error(), fiber.Map{})
 	}
 	//分配默认角色
+	// 注意：这里不需要额外的查询，因为已经在上面创建了用户角色
 
-	config.DB.Table("user_roles").Where("user_id")
 	return pkg.NewAppResponse(c, fiber.StatusOK, 0, "success", "", fiber.Map{})
 }
 
@@ -330,7 +413,7 @@ func (u *UserHandler) Handler_UserLogin(c fiber.Ctx) error {
 	payload.Username = strings.TrimSpace(payload.Username)
 	var userInfo user.User
 	if err := u.DB.Where("username = ?", payload.Username).First(&userInfo).Error; err != nil {
-		return pkg.NewAppResponse(c, fiber.StatusForbidden, 1, "user is not exist", "", fiber.Map{})
+		return pkg.NewAppResponse(c, fiber.StatusForbidden, 1, "user not exist", "", fiber.Map{})
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(userInfo.Password), []byte(payload.Password)); err != nil {
 		return pkg.NewAppResponse(c, fiber.StatusForbidden, 1, "password is wrong", "", fiber.Map{})

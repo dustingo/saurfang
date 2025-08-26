@@ -101,7 +101,7 @@ func validAk(ak string) (uint, string, bool) {
 
 func GetRoleOfUser(user_id uint) (uint, error) {
 	var ur user.UserRole
-	if err := config.DB.Raw("SELECT ur.role_id,ur.user_id  FROM user_roles ur JOIN user_credentials uc ON ur.user_id = ?;", user_id).Scan(&ur).Error; err != nil {
+	if err := config.DB.Where("user_id = ?", user_id).First(&ur).Error; err != nil {
 		return 0, err
 	}
 	return ur.RoleID, nil
