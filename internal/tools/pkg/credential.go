@@ -13,7 +13,11 @@ import (
 	"time"
 )
 
+// generateSecureRandomString 生成随机字符串
 func generateSecureRandomString(length int) (string, error) {
+	if length <= 0 {
+		return "", fmt.Errorf("length must be greater than 0")
+	}
 	charset := "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 	bytes := make([]byte, length)
 	_, err := rand.Read(bytes)
@@ -24,6 +28,18 @@ func generateSecureRandomString(length int) (string, error) {
 		bytes[i] = charset[bytes[i]%byte(len(charset))]
 	}
 	return string(bytes), nil
+}
+
+// GenerateSecureRandomStringForTest 仅用于测试的公开函数
+// 生成随机字符串
+func GenerateSecureRandomStringForTest(length int) (string, error) {
+	return generateSecureRandomString(length)
+}
+
+// GenerateSignatureForTest 仅用于测试的公开函数
+// 生成签名
+func GenerateSignatureForTest(accessKey, secretKey, method, path, timestamp string) (string, error) {
+	return generateSignature(accessKey, secretKey, method, path, timestamp)
 }
 func GenerateAKSKPair(userid uint) (*credential.UserCredential, error) {
 	accessKey, err := generateSecureRandomString(20)

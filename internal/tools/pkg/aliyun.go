@@ -2,23 +2,24 @@ package pkg
 
 import (
 	"encoding/json"
+	"saurfang/internal/models/aliyun"
+
 	openapi "github.com/alibabacloud-go/darabonba-openapi/v2/client"
 	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v6/client"
 	util "github.com/alibabacloud-go/tea-utils/v2/service"
 	"github.com/alibabacloud-go/tea/tea"
-	"saurfang/internal/models/aliyun"
 )
 
-type CloudClient interface {
-	Fetch() ([]*ecs20140526.DescribeInstancesResponseBodyInstancesInstance, error)
-}
+//	type CloudClient interface {
+//		Fetch() ([]*ecs20140526.DescribeInstancesResponseBodyInstancesInstance, error)
+//	}
 type AliyunClient struct {
 	Client  *ecs20140526.Client
 	Region  string
 	GroupId string
 }
 
-func NewAlyumClient(ak, sk, endpoint, region, groupId string) (AliyunClient, error) {
+func NewAlyunClient(ak, sk, endpoint, region, groupId string) (AliyunClient, error) {
 	config := &openapi.Config{
 		AccessKeyId:     tea.String(ak),
 		AccessKeySecret: tea.String(sk),

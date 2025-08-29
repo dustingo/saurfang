@@ -12,10 +12,28 @@ import (
 	"time"
 )
 
+// Notify 通知接口
+type Notify interface {
+	Send(subject, message string, cnf *notify.NotifyConfig) error
+}
+
+var notifyFactory = map[string]Notify{}
+
+// registerNotify 注册通知器
+func registerNotify(name string, notify Notify) {
+	notifyFactory[name] = notify
+}
+
 // Notification 通知消息的数据结构
 type Notification struct {
 	Type    string `json:"type"`
 	Message string `json:"message"`
+}
+
+func init() {
+	registerNotify(notify.ChannelDingTalk, &DingTalkNotification{})
+	registerNotify(notify.ChannelEmail, &EmailNotification{})
+	registerNotify(notify.ChannelLark, &LarkNotification{})
 }
 
 // PublishNotification 发布消息
@@ -114,41 +132,12 @@ func handleNotifyEvent(eventType string, message string) {
 		if !containsString(subscribeEvent, eventType) {
 			continue
 		}
-		switch configs.Channel {
-		case notify.ChannelDingTalk:
-			var dingtalk DingTalkNotification
-			if err = json.Unmarshal([]byte(configs.Config), &dingtalk); err != nil {
-				slog.Error("unmarshal dingtalk notification config error", "error", err)
+		if s, ok := notifyFactory[configs.Channel]; ok {
+			if err = s.Send(fmt.Sprintf("📢:%s", eventType), message, configs); err != nil {
+				slog.Error("send notification error", "error", err)
 				continue
 			}
-			if err = dingtalk.Send(fmt.Sprintf("📢:%s", eventType), message); err != nil {
-				slog.Error("send dingtalk notification error", "error", err)
-				continue
-			}
-		case notify.ChannelEmail:
-			var email EmailNotification
-			if err = json.Unmarshal([]byte(configs.Config), &email); err != nil {
-				slog.Error("unmarshal email notification config error", "error", err)
-				continue
-			}
-			if err = email.Send(fmt.Sprintf("📢:%s", eventType), message); err != nil {
-				slog.Error("send email notification error", "error", err)
-				continue
-			}
-		case notify.ChannelLark:
-			var lark LarkNotification
-			if err = json.Unmarshal([]byte(configs.Config), &lark); err != nil {
-				slog.Error("unmarshal lark notification config error", "error", err)
-				continue
-			}
-			if err = lark.Send(fmt.Sprintf("📢:%s", eventType), message); err != nil {
-				slog.Error("send lark notification error", "error", err)
-				continue
-			}
-		default:
-			slog.Error("notify channel not found", "channel", configs.Channel)
 		}
-
 	}
 }
 

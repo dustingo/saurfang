@@ -19,7 +19,7 @@ func WarmUpCache() error {
 		Name         string `json:"name"`
 	}
 	var rps []RolePermission
-	query := "SELECT r.id,  rp.permission_id, p.name  FROM roles r JOIN role_permissions rp ON r.id  = rp.role_id JOIN permissions p ON rp.permission_id = p.id"
+	query := "SELECT r.id,  rp.permission_id, p.name  FROM roles r JOIN role_permissions rp ON r.id  = rp.role_id JOIN permissions p ON rp.permission_id = p.id order by id"
 	if err := config.DB.Raw(query).Scan(&rps).Error; err != nil {
 		return err
 	}
@@ -78,49 +78,49 @@ func WarmUpNotifyCache() error {
 		if err != nil {
 			continue
 		}
-
+		// 存储订阅详情 - 使用 JSON 格式避免字段冗余
 		if err := config.CahceClient.Set(context.Background(), detailKey, jsonData, 24*time.Hour).Err(); err != nil {
 			return err
 		}
 
 		// 按用户ID建立索引 - 存储订阅ID列表
-		userIndexKey := fmt.Sprintf("%s:user:%d", notify.SubscribeKey, sub.UserID)
-		if err := config.CahceClient.SAdd(context.Background(), userIndexKey, sub.ID).Err(); err != nil {
-			return err
-		}
+		// userIndexKey := fmt.Sprintf("%s:user:%d", notify.SubscribeKey, sub.UserID)
+		// if err := config.CahceClient.SAdd(context.Background(), userIndexKey, sub.ID).Err(); err != nil {
+		// 	return err
+		// }
 
 		// 按事件类型建立索引（EventType是逗号分隔的字符串）
-		if sub.EventType != "" {
-			eventTypes := strings.Split(sub.EventType, ",")
-			for _, eventType := range eventTypes {
-				eventType = strings.TrimSpace(eventType) // 去除空格
-				if eventType != "" {
-					eventIndexKey := fmt.Sprintf("%s:event:%s", notify.SubscribeKey, eventType)
-					if err := config.CahceClient.SAdd(context.Background(), eventIndexKey, sub.ID).Err(); err != nil {
-						return err
-					}
-					// 设置索引键过期时间
-					config.CahceClient.Expire(context.Background(), eventIndexKey, 24*time.Hour)
-				}
-			}
-		}
+		// if sub.EventType != "" {
+		// 	eventTypes := strings.Split(sub.EventType, ",")
+		// 	for _, eventType := range eventTypes {
+		// 		eventType = strings.TrimSpace(eventType) // 去除空格
+		// 		if eventType != "" {
+		// 			eventIndexKey := fmt.Sprintf("%s:event:%s", notify.SubscribeKey, eventType)
+		// 			if err := config.CahceClient.SAdd(context.Background(), eventIndexKey, sub.ID).Err(); err != nil {
+		// 				return err
+		// 			}
+		// 			// 设置索引键过期时间
+		// 			config.CahceClient.Expire(context.Background(), eventIndexKey, 24*time.Hour)
+		// 		}
+		// 	}
+		// }
 
 		// 按通知配置ID建立索引
-		configIndexKey := fmt.Sprintf("%s:config:%d", notify.SubscribeKey, sub.NotifyConfigID)
-		if err := config.CahceClient.SAdd(context.Background(), configIndexKey, sub.ID).Err(); err != nil {
-			return err
-		}
+		// configIndexKey := fmt.Sprintf("%s:config:%d", notify.SubscribeKey, sub.NotifyConfigID)
+		// if err := config.CahceClient.SAdd(context.Background(), configIndexKey, sub.ID).Err(); err != nil {
+		// 	return err
+		// }
 
-		// 按状态建立索引
-		statusIndexKey := fmt.Sprintf("%s:status:%s", notify.SubscribeKey, sub.Status)
-		if err := config.CahceClient.SAdd(context.Background(), statusIndexKey, sub.ID).Err(); err != nil {
-			return err
-		}
+		// // 按状态建立索引
+		// statusIndexKey := fmt.Sprintf("%s:status:%s", notify.SubscribeKey, sub.Status)
+		// if err := config.CahceClient.SAdd(context.Background(), statusIndexKey, sub.ID).Err(); err != nil {
+		// 	return err
+		// }
 
 		// 设置索引键过期时间
-		config.CahceClient.Expire(context.Background(), userIndexKey, 24*time.Hour)
-		config.CahceClient.Expire(context.Background(), configIndexKey, 24*time.Hour)
-		config.CahceClient.Expire(context.Background(), statusIndexKey, 24*time.Hour)
+		//config.CahceClient.Expire(context.Background(), userIndexKey, 24*time.Hour)
+		// config.CahceClient.Expire(context.Background(), configIndexKey, 24*time.Hour)
+		// config.CahceClient.Expire(context.Background(), statusIndexKey, 24*time.Hour)
 	}
 
 	// 加载 NotifyConfig 数据
@@ -152,27 +152,27 @@ func WarmUpNotifyCache() error {
 		}
 
 		// 按名称建立索引
-		nameIndexKey := fmt.Sprintf("%s:name:%s", notify.ConfigKey, cfg.Name)
-		if err := config.CahceClient.SAdd(context.Background(), nameIndexKey, cfg.ID).Err(); err != nil {
-			return err
-		}
+		// nameIndexKey := fmt.Sprintf("%s:name:%s", notify.ConfigKey, cfg.Name)
+		// if err := config.CahceClient.SAdd(context.Background(), nameIndexKey, cfg.ID).Err(); err != nil {
+		// 	return err
+		// }
 
 		// 按渠道建立索引
-		channelIndexKey := fmt.Sprintf("%s:channel:%s", notify.ConfigKey, cfg.Channel)
-		if err := config.CahceClient.SAdd(context.Background(), channelIndexKey, cfg.ID).Err(); err != nil {
-			return err
-		}
+		// channelIndexKey := fmt.Sprintf("%s:channel:%s", notify.ConfigKey, cfg.Channel)
+		// if err := config.CahceClient.SAdd(context.Background(), channelIndexKey, cfg.ID).Err(); err != nil {
+		// 	return err
+		// }
 
 		// 按状态建立索引
-		configStatusIndexKey := fmt.Sprintf("%s:status:%s", notify.ConfigKey, cfg.Status)
-		if err := config.CahceClient.SAdd(context.Background(), configStatusIndexKey, cfg.ID).Err(); err != nil {
-			return err
-		}
+		// configStatusIndexKey := fmt.Sprintf("%s:status:%s", notify.ConfigKey, cfg.Status)
+		// if err := config.CahceClient.SAdd(context.Background(), configStatusIndexKey, cfg.ID).Err(); err != nil {
+		// 	return err
+		// }
 
 		// 设置配置相关键的过期时间
-		config.CahceClient.Expire(context.Background(), nameIndexKey, 24*time.Hour)
-		config.CahceClient.Expire(context.Background(), channelIndexKey, 24*time.Hour)
-		config.CahceClient.Expire(context.Background(), configStatusIndexKey, 24*time.Hour)
+		// config.CahceClient.Expire(context.Background(), nameIndexKey, 24*time.Hour)
+		// config.CahceClient.Expire(context.Background(), channelIndexKey, 24*time.Hour)
+		// config.CahceClient.Expire(context.Background(), configStatusIndexKey, 24*time.Hour)
 	}
 
 	return nil
@@ -186,14 +186,14 @@ func LoadPermissionToRedis(roleid uint) error {
 		Name         string `json:"name"`
 	}
 	var rps []RolePermission
-	query := fmt.Sprintf("SELECT r.id,  rp.permission_id, p.name  FROM roles r JOIN role_permissions rp ON r.id  = rp.role_id JOIN permissions p ON rp.permission_id = p.id WHERE r.id= %d", roleid)
+	query := fmt.Sprintf("SELECT r.id,  rp.permission_id, p.name  FROM roles r JOIN role_permissions rp ON r.id  = rp.role_id JOIN permissions p ON rp.permission_id = p.id WHERE r.id= %d order by permission_id", roleid)
 	if err := config.DB.Raw(query).Scan(&rps).Error; err != nil {
 		return err
 	}
 	key := fmt.Sprintf("role_permission:%d", roleid)
-	if err := config.CahceClient.Del(context.Background(), key).Err(); err != nil {
-		return err
-	}
+	// if err := config.CahceClient.Del(context.Background(), key).Err(); err != nil {
+	// 	return err
+	// }
 	for _, rp := range rps {
 		if err := config.CahceClient.SAdd(context.Background(), key, rp.Name).Err(); err != nil {
 			return err

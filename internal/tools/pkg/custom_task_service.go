@@ -68,9 +68,8 @@ func (s *CustomTaskService) ExecuteCustomTaskAsync(customTask *task.CustomTask, 
 
 		// Save Job HCL to Consul (using host-specific key)
 		consulKey := fmt.Sprintf("custom_job/%d_%s", customTask.ID, host)
-		if err := s.saveJobHCLToConsulWithKey(jobSpec, consulKey); err != nil {
+		if err = s.saveJobHCLToConsulWithKey(jobSpec, consulKey); err != nil {
 			slog.Warn("Failed to save job HCL to Consul", "host", host, "error", err)
-			// Don't block task execution, just log warning
 		}
 
 		// Parse and register Nomad Job

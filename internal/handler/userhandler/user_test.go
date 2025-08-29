@@ -206,7 +206,6 @@ func TestUserHandler_Handler_UserRegister_InvalidInviteCode(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
 	assert.Equal(t, "invite code not found", respBody["message"])
-	// 验证所有mock期望都被满足
 	assert.NoError(t, mockDB.Mock.ExpectationsWereMet())
 }
 

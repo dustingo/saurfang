@@ -119,7 +119,7 @@ func (a *AutoSyncHandler) AutoSyncAliYunEcs(target string) error {
 	if err := a.DB.First(&autoConfig, "label = ?", target).Error; err != nil {
 		return err
 	}
-	client, err := pkg.NewAlyumClient(autoConfig.AccessKey, autoConfig.SecretKey, autoConfig.Endpoint, autoConfig.Region, autoConfig.GroupID)
+	client, err := pkg.NewAlyunClient(autoConfig.AccessKey, autoConfig.SecretKey, autoConfig.Endpoint, autoConfig.Region, autoConfig.GroupID)
 	if err != nil {
 		return err
 	}

@@ -196,7 +196,7 @@ func ProcessServer(config serverconfig.Configs) error {
 	if err != nil {
 		return fmt.Errorf("create file failed: %w", err)
 	}
-	if _, err := originFile.Write(originalContent); err != nil {
+	if _, err = originFile.Write(originalContent); err != nil {
 		return fmt.Errorf("write origin file failed: %w", err)
 	}
 	// 以原始配置文件为模板, 使用变量替换,并写入临时文件
@@ -205,7 +205,7 @@ func ProcessServer(config serverconfig.Configs) error {
 	if err != nil {
 		return fmt.Errorf("template parse file failed: %w", err)
 	}
-	if err := tmpl.Execute(&buf, config.Vars); err != nil {
+	if err = tmpl.Execute(&buf, config.Vars); err != nil {
 
 	}
 	// 尽量不使用must 避免panic

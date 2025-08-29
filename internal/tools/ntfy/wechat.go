@@ -10,7 +10,7 @@ type WeChatNotification struct {
 	EncodingAESKey string
 }
 
-func (n *WeChatNotification) Send() error {
+func (n *WeChatNotification) Send(subject, message string) error {
 	slog.Info("send wechat notification", "appid", n.AppID, "appsecret", n.AppSecret, "token", n.Token, "encodingaeskey", n.EncodingAESKey)
 
 	return nil
