@@ -29,7 +29,9 @@ type PermissionCache struct {
 	ttl   time.Duration            // 缓存有效期
 }
 
-func GenerateInviteCodes(charset string) error {
+func GenerateInviteCodes() error {
+	// 定义邀请码字符集
+	charset := "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 	codes := make([]string, 100)
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	for j := 0; j < 100; j++ {

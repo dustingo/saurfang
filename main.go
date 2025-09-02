@@ -57,28 +57,31 @@ var (
 //go:embed web/toofast.html
 var toofast string
 var (
-	serve, migrate, generate bool
-	char                     string
-	setAdmin                 string
+	serve, migrate bool
+	name           string
 )
 
 func main() {
 	rootCmd := createRootCommand()
 	adminCmd := createAdminCommand()
+	genCmd := codegenCommand()
+	permissionCmd := createPermissionCommand()
+	setAdminCmd := creageSetAdminCommand()
 
 	// 配置根命令标志
 	rootCmd.Flags().BoolVar(&serve, "serve", false, "启动服务器")
 	rootCmd.Flags().BoolVar(&migrate, "migrate", false, "初始化数据库")
-	rootCmd.Flags().BoolVar(&generate, "generate", false, "生成注册邀请码")
-	rootCmd.Flags().StringVar(&char, "char", "", "生成注册邀请码的基本字符串")
-	rootCmd.MarkFlagsMutuallyExclusive("serve", "migrate", "generate")
+	rootCmd.MarkFlagsMutuallyExclusive("serve", "migrate")
 
 	// 配置管理员命令标志
-	adminCmd.Flags().StringVar(&setAdmin, "set-admin", "", "设置管理员")
-	adminCmd.MarkFlagRequired("set-admin")
+	setAdminCmd.Flags().StringVar(&name, "name", "", "设置管理员")
+	setAdminCmd.MarkFlagRequired("name")
 
 	// 添加子命令
 	rootCmd.AddCommand(adminCmd)
+	adminCmd.AddCommand(genCmd)
+	adminCmd.AddCommand(permissionCmd)
+	adminCmd.AddCommand(setAdminCmd)
 
 	// 执行命令
 	if err := rootCmd.Execute(); err != nil {
@@ -92,7 +95,7 @@ func createRootCommand() *cobra.Command {
 		Use:          "saurfang",
 		Short:        "Saurfang游戏运维工具",
 		Long:         "Saurfang是一个用于游戏服务器运维管理的工具，支持服务器启动、数据库迁移、邀请码生成等功能。",
-		SilenceUsage: true,
+		SilenceUsage: false,
 		PreRun:       printVersionInfo,
 		Run:          runRootCommand,
 	}
@@ -101,10 +104,36 @@ func createRootCommand() *cobra.Command {
 // createAdminCommand 创建管理员命令
 func createAdminCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "admin",
-		Short: "管理员相关操作",
-		Long:  "管理员相关操作，包括设置管理员用户等功能。",
-		Run:   runAdminCommand,
+		Use:          "admin",
+		Short:        "管理员相关操作",
+		Long:         "管理员相关操作，包括设置管理员用户等功能。",
+		SilenceUsage: false,
+		//Run:          runAdminCommand,
+	}
+}
+func codegenCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "codegen",
+		Short: "生成注册邀请码",
+		Run:   runCodegenCommand,
+	}
+}
+func createPermissionCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:          "set-perms",
+		Short:        "设置权限",
+		Long:         "设置管理员权限",
+		SilenceUsage: false,
+		Run:          runPermissionCommand,
+	}
+}
+func creageSetAdminCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:          "set-admin",
+		Short:        "设置管理员",
+		Long:         "设置管理员",
+		SilenceUsage: false,
+		Run:          runAdminCommand,
 	}
 }
 
@@ -132,9 +161,9 @@ func runRootCommand(cmd *cobra.Command, args []string) {
 	if migrate {
 		runDatabaseMigration()
 	}
-	if generate {
-		generateInviteCodes()
-	}
+	// if generate {
+	// 	generateInviteCodes()
+	// }
 }
 
 // runAdminCommand 执行管理员命令
@@ -145,11 +174,29 @@ func runAdminCommand(cmd *cobra.Command, args []string) {
 	// 初始化数据库和缓存
 	config.InitMySQL()
 	config.InitCache()
+	setAdminFunc()
 
-	// 设置管理员
-	if setAdmin != "" {
-		setAdminFunc()
-	}
+}
+
+// runCodegenCommand 生成邀请码
+func runCodegenCommand(cmd *cobra.Command, args []string) {
+	// 加载环境变量
+	loadEnvFile()
+
+	// 初始化数据库
+	config.InitMySQL()
+
+	generateInviteCodes()
+}
+func runPermissionCommand(cmd *cobra.Command, args []string) {
+	// 加载环境变量
+	loadEnvFile()
+
+	// 初始化数据库和缓存
+	config.InitMySQL()
+
+	setPermissionFunc()
+
 }
 
 // startPprofServer 启动pprof性能分析服务
@@ -402,7 +449,7 @@ func createDefaultRoles() {
 
 // generateInviteCodes 生成邀请码
 func generateInviteCodes() {
-	if err := tools.GenerateInviteCodes(char); err != nil {
+	if err := tools.GenerateInviteCodes(); err != nil {
 		log.Fatalln("GenerateInviteCodes failed:", err)
 	}
 	log.Println("邀请码生成完成")
@@ -411,12 +458,10 @@ func generateInviteCodes() {
 // setAdminFunc 设置管理员用户
 func setAdminFunc() {
 	var existingUser user.User
-	if err := config.DB.Table("users").Where("username = ?", setAdmin).First(&existingUser).Error; err != nil {
+	if err := config.DB.Table("users").Where("username = ?", name).First(&existingUser).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			log.Printf("用户 %s 不存在，无法设置为管理员", setAdmin)
+			log.Printf("用户 %s 不存在，无法设置为管理员", name)
 			// 创建用户
-			// 生成随机密码并使用bcrypt加密
-			// 生成10位随机密码
 			const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 			rawPassword := make([]byte, 10)
 			for i := range rawPassword {
@@ -431,14 +476,14 @@ func setAdminFunc() {
 				Username string
 				Password string
 			}{
-				Username: setAdmin,
+				Username: name,
 				Password: string(hashedPassword),
 			}
-			result := config.DB.Table("users").Where("username = ?", setAdmin).FirstOrCreate(&newUser)
+			result := config.DB.Table("users").Where("username = ?", name).FirstOrCreate(&newUser)
 			if result.Error != nil {
 				log.Fatalln("failed to create user:", result.Error)
 			}
-			log.Printf("成功创建用户 %s,默认密码: %s", setAdmin, string(rawPassword))
+			log.Printf("成功创建用户 %s,默认密码: %s", name, string(rawPassword))
 			// 将用户设置为管理员
 			if err := config.DB.Table("user_roles").Create(&user.UserRole{
 				UserID: newUser.ID,
@@ -446,9 +491,49 @@ func setAdminFunc() {
 			}).Error; err != nil {
 				log.Fatalln("failed to create user role:", err)
 			}
-			log.Printf("成功将用户 %s 设置为管理员", setAdmin)
+			log.Printf("成功将用户 %s 设置为管理员", name)
 			return
 		}
 		log.Fatalln("查询用户失败:", err)
 	}
+}
+
+// setRolePermission 设置管理员权限
+func setPermissionFunc() {
+	// 需要拉起主程序后才能使用此功能
+	var permissions []user.Permission
+
+	// 查询所有权限
+	if err := config.DB.Find(&permissions).Error; err != nil {
+		log.Printf("查询权限失败: %v", err)
+		return
+	}
+
+	// 开始事务
+	tx := config.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// 将所有权限分配给管理员角色
+	for _, permission := range permissions {
+		rolePermission := user.RolePermissionRelation{
+			RoleID:       1,
+			PermissionID: permission.ID,
+		}
+		if err := tx.Table("role_permissions").Create(&rolePermission).Error; err != nil {
+			tx.Rollback()
+			log.Printf("创建角色权限关系失败: %v", err)
+			return
+		}
+	}
+
+	// 提交事务
+	if err := tx.Commit().Error; err != nil {
+		log.Printf("提交事务失败: %v", err)
+		return
+	}
+	log.Printf("成功为管理员角色分配了 %d 个权限", len(permissions))
 }

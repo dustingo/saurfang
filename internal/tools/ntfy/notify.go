@@ -34,6 +34,7 @@ func init() {
 	registerNotify(notify.ChannelDingTalk, &DingTalkNotification{})
 	registerNotify(notify.ChannelEmail, &EmailNotification{})
 	registerNotify(notify.ChannelLark, &LarkNotification{})
+	registerNotify(notify.ChannelTuitui, &TuiTuiNotification{})
 }
 
 // PublishNotification 发布消息

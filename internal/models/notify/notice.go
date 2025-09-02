@@ -39,6 +39,7 @@ const (
 	ChannelEmail    string = "email"
 	ChannelHTTP     string = "http"
 	ChannelLark     string = "lark"
+	ChannelTuitui   string = "tuitui"
 )
 
 // NotifySubscribe 通知订阅
