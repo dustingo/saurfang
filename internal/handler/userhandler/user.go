@@ -10,7 +10,6 @@ import (
 	"saurfang/internal/models/dashboard"
 	"saurfang/internal/models/user"
 	"saurfang/internal/repository/base"
-	"saurfang/internal/tools"
 	"saurfang/internal/tools/pkg"
 	"strconv"
 	"strings"
@@ -422,7 +421,7 @@ func (u *UserHandler) Handler_UserLogin(c fiber.Ctx) error {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"id":       userInfo.ID,
 		"username": userInfo.Username,
-		"role":     tools.RoleOfUser(userInfo.ID),
+		"role":     u.getRoleIDOfUser(userInfo.ID),
 		"iat":      time.Now().Unix(),
 		"exp":      time.Now().Add(time.Duration(expireTime) * time.Second).Unix(),
 	})
@@ -443,6 +442,15 @@ func (u *UserHandler) Handler_UserLogin(c fiber.Ctx) error {
 		config.DB.Save(&loginStatus)
 	}(userInfo.Username, c.IP(), time.Now())
 	return pkg.NewAppResponse(c, fiber.StatusOK, 0, "login success", "", fiber.Map{})
+}
+
+// getRoleIDOfUser 获取用户的角色ID
+func (u *UserHandler) getRoleIDOfUser(id uint) uint {
+	var res user.UserRole
+	if err := config.DB.Table("user_roles").Where("user_id = ?", id).First(&res).Error; err != nil {
+		return 0
+	}
+	return res.RoleID
 }
 
 // Handler_UserLogout 用户退出

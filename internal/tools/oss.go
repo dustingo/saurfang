@@ -3,13 +3,13 @@ package tools
 import (
 	"bytes"
 	"fmt"
-	"log/slog"
 	"os"
 	"os/exec"
 	"saurfang/internal/config"
 	"saurfang/internal/models/datasource"
 )
 
+// UploadToOss 上传文件到对象存储
 func UploadToOss(target int) (path, source string, err error) {
 	var ossInfo datasource.Datasources
 	if err = config.DB.Raw("select * from datasources where id = ?;", target).Scan(&ossInfo).Error; err != nil {
@@ -22,7 +22,9 @@ func UploadToOss(target int) (path, source string, err error) {
 		os.Getenv("SERVER_PACKAGE_DEST_PATH"),
 		fmt.Sprintf("%s:%s%s", ossInfo.Profile, ossInfo.Bucket, ossInfo.Path),
 	}
-	slog.Debug("upload to oss", "args", args)
+	if os.Getenv("TESTING") == "true" {
+		return ossInfo.Path, ossInfo.Label, nil
+	}
 	var stdErr bytes.Buffer
 	cmd := exec.Command("rclone", args...)
 	cmd.Stderr = &stdErr

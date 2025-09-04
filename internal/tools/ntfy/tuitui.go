@@ -11,7 +11,7 @@ import (
 	"saurfang/internal/models/notify"
 )
 
-// DingTalkNotification 钉钉通知
+// DingTalkNotification 推推通知
 type TuiTuiNotification struct{}
 type TuiTuiConfig struct {
 	URL    string `json:"url"`
@@ -20,7 +20,7 @@ type TuiTuiConfig struct {
 	Team   string `json:"team"`
 }
 
-// Send 发送钉钉通知
+// Send 发送推推通知
 func (t *TuiTuiNotification) Send(subject string, message string, cnf *notify.NotifyConfig) error {
 	var tuitui TuiTuiConfig
 	if err := json.Unmarshal([]byte(cnf.Config), &tuitui); err != nil {

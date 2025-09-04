@@ -6,6 +6,7 @@ import (
 	"strings"
 )
 
+// Deprecated 已经废弃,没有继续使用
 // 配置更新接口的hosts格式为server-ip，因此需要将数据归类存储
 func SortHosts(data string) (map[string][]string, error) {
 	// 创建一个map来存储数据

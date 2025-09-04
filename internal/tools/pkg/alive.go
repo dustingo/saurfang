@@ -1,4 +1,3 @@
-// Deprecated: This package is no longer maintained.
 package pkg
 
 import (
@@ -18,6 +17,7 @@ const (
 	Offline uint = 0
 )
 
+// Deprecated: This package is no longer maintained.
 func checkActive(public_ip, private_ip string, port int) (bool, error) {
 	var host string
 	if private_ip != "" {
@@ -36,6 +36,8 @@ func checkActive(public_ip, private_ip string, port int) (bool, error) {
 	}
 	return true, nil
 }
+
+// Deprecated: This package is no longer maintained.
 func CheckActiveInterval(db *gorm.DB) {
 	// 待优化
 	// is_active 状态需要增加缓存来避免数据库重复写入s

@@ -105,6 +105,7 @@ func (nc *NotifyConfig) IsValidChannel() bool {
 		ChannelEmail,
 		ChannelHTTP,
 		ChannelLark,
+		ChannelTuitui,
 	}
 
 	for _, validChannel := range validChannels {

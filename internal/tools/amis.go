@@ -2,6 +2,7 @@ package tools
 
 import "saurfang/internal/models/serverconfig"
 
+// Deprecate 该函数已废弃，不建议使用
 func AddToTree(tree map[string]*serverconfig.Node, ChannelName, GameName, HostName, Private_ip string) {
 	// 1. 获取或创建大类节点
 	if _, exists := tree[ChannelName]; !exists {
@@ -38,8 +39,8 @@ func AddToTree(tree map[string]*serverconfig.Node, ChannelName, GameName, HostNa
 	}
 }
 
+// GenerateSeverList 生成以channel分类的游戏服列表
 func GenerateSeverList(list map[string]*serverconfig.ServerListNode, ChannelName, GameName, serverID string) {
-
 	// 1. 获取或创建大类节点
 	if _, exists := list[ChannelName]; !exists {
 		list[ChannelName] = &serverconfig.ServerListNode{Label: ChannelName, SelectMode: "list", Children: []*serverconfig.Children{}}

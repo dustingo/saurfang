@@ -5,16 +5,17 @@ import (
 	"math/rand"
 	"saurfang/internal/config"
 	"saurfang/internal/models/user"
-	"sync"
 	"time"
 )
 
+// PermissionData角色路由组权限数据结构
 type PermissionData struct {
 	ID    uint   `gorm:"primaryKey" json:"id"`
 	Name  string `json:"name"`
 	Group string `json:"group"`
 }
 
+// InitPermissionsItems 角色路由组权限入库
 func InitPermissionsItems(data *PermissionData) {
 	config.DB.Table("permissions").Where(user.Permission{
 		Name:  data.Name,
@@ -22,13 +23,7 @@ func InitPermissionsItems(data *PermissionData) {
 	}).FirstOrCreate(&data)
 }
 
-// PermissionCache 账号权限缓存
-type PermissionCache struct {
-	cache map[uint]map[string]bool // 用户ID -> (权限字符串 -> bool)
-	mutex sync.RWMutex             // 读写锁
-	ttl   time.Duration            // 缓存有效期
-}
-
+// GenerateInviteCodes 生成邀请码
 func GenerateInviteCodes() error {
 	// 定义邀请码字符集
 	charset := "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"

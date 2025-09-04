@@ -40,7 +40,7 @@ type CustomTaskExecution struct {
 	NomadEvalID    string     `gorm:"type:varchar(255);comment:Nomad Evaluation ID" json:"nomad_eval_id"`
 	NomadAllocID   string     `gorm:"type:varchar(255);comment:Nomad Allocation ID" json:"nomad_alloc_id"`
 	NomadNodeID    string     `gorm:"type:varchar(255);comment:Nomad Node ID" json:"nomad_node_id"`
-	NomadJobStatus string     `gorm:"type:varchar(50);comment:Nomad Job状态" json:"nomad_job_status"`
+	NomadJobStatus string     `gorm:"type:text;comment:Nomad Job状态" json:"nomad_job_status"`
 	LastCheckTime  *time.Time `gorm:"comment:最后检查时间" json:"last_check_time"`
 	CheckCount     int        `gorm:"default:0;comment:检查次数" json:"check_count"`
 	MaxCheckCount  int        `gorm:"default:60;comment:最大检查次数" json:"max_check_count"`
@@ -70,11 +70,11 @@ func (p *CustomTaskPayload) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(p),
 	}
-	
+
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
-	
+
 	// 处理 parameters 字段
 	if aux.Parameters != nil {
 		switch v := aux.Parameters.(type) {
@@ -93,7 +93,7 @@ func (p *CustomTaskPayload) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	
+
 	return nil
 }
 

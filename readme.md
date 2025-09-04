@@ -95,32 +95,9 @@ cd saurfang_v2_fiber
 cp .env.examples .env
 ```
 
-编辑 `.env` 文件，配置以下关键参数：
-```env
-# 数据库配置
-MYSQL_DSN=user:password@tcp(localhost:3306)/saurfang?charset=utf8mb4&parseTime=True&loc=Local
-
-# Redis 配置
-REDIS_ADDR=localhost:6379
-REDIS_PASSWORD=
-REDIS_DB=0
-
-# Nomad 配置
-NOMAD_HTTP_API_ADDR=http://localhost:4646
-
-# Consul 配置
-CONSUL_HTTP_ADDR=http://localhost:8500
-
-# JWT 密钥
-JWT_SECRET=your-secret-key
-
-# 服务端口
-PORT=8080
-```
-
 ### 3. 安装依赖
 ```bash
-go mod download
+go mod tidy
 ```
 
 ### 4. 数据库初始化
@@ -137,152 +114,31 @@ go run main.go
 
 ### 6. 访问系统
 - **Web 界面**: http://localhost:8080
-- **API 文档**: http://localhost:8080/api/docs (如果配置了)
-- **性能监控**: http://localhost:8080/debug/pprof/
-
-## 🏗️ 项目结构
-
-```
-saurfang_v2_fiber/
-├── internal/                 # 内部包
-│   ├── config/              # 配置管理
-│   │   ├── mysql.go         # MySQL 配置
-│   │   ├── nomad.go         # Nomad 配置
-│   │   ├── consul.go        # Consul 配置
-│   │   └── ...
-│   ├── handler/             # HTTP 处理器
-│   │   ├── userhandler/     # 用户管理
-│   │   ├── gamehandler/     # 游戏管理
-│   │   ├── taskhandler/     # 任务管理
-│   │   ├── cmdbhandler/     # CMDB 管理
-│   │   └── ...
-│   ├── models/              # 数据模型
-│   │   ├── user/            # 用户模型
-│   │   ├── task/            # 任务模型
-│   │   ├── gameserver/      # 游戏服务器模型
-│   │   └── ...
-│   ├── middleware/          # 中间件
-│   │   └── auth.go          # 认证中间件
-│   ├── route/               # 路由配置
-│   │   ├── routes.go        # 路由注册
-│   │   ├── user.go          # 用户路由
-│   │   ├── game.go          # 游戏路由
-│   │   └── ...
-│   ├── repository/          # 数据访问层
-│   │   └── base/            # 基础仓库
-│   └── tools/               # 工具包
-│       ├── pkg/             # 通用工具
-│       ├── ntfy/            # 通知工具
-│       └── ...
-├── web/                     # 前端资源
-├── signature/               # 签名工具
-├── main.go                  # 程序入口
-├── go.mod                   # Go 模块文件
-├── build.bat                # 构建脚本
-└── README.md                # 项目文档
-```
-
-## 🔧 配置说明
-
-### Nomad 任务调度配置
-
-Nomad 是本系统的核心任务调度组件，特别适用于游戏运维场景：
-
-#### 节点约束 (Node Constraints)
-游戏程序通常需要在特定服务器上运行，通过节点约束实现：
-```hcl
-constraint {
-  attribute = "${attr.unique.hostname}"
-  operator  = "regexp"
-  value     = "(server1|server2|server3)"
-}
-```
-
-#### 业务逻辑分组 (Group)
-每个 `group` 代表一个独立的业务逻辑单元，便于管理和监控。
-
-#### 资源限制 (Resources)
-在 `driver = "raw_exec"` 模式下，资源配置是必需的：
-```hcl
-resources {
-  cpu    = 500
-  memory = 512
-}
-```
-
-### 云服务配置
-
-#### 阿里云配置
-```env
-ALIYUN_ACCESS_KEY_ID=your-access-key
-ALIYUN_ACCESS_KEY_SECRET=your-secret-key
-ALIYUN_REGION=cn-hangzhou
-```
-
-#### 华为云配置
-```env
-HUAWEI_ACCESS_KEY=your-access-key
-HUAWEI_SECRET_KEY=your-secret-key
-HUAWEI_REGION=cn-north-1
-```
-
-## 📚 API 文档
-
-### 认证接口
-- `POST /api/user/login` - 用户登录
-- `POST /api/user/register` - 用户注册
-- `POST /api/user/logout` - 用户登出
-
-### 游戏管理接口
-- `GET /api/game/servers` - 获取游戏服务器列表
-- `POST /api/game/servers` - 创建游戏服务器
-- `PUT /api/game/servers/:id` - 更新游戏服务器
-- `DELETE /api/game/servers/:id` - 删除游戏服务器
-
-### 任务管理接口
-- `GET /api/tasks/custom` - 获取自定义任务列表
-- `POST /api/tasks/custom` - 创建自定义任务
-- `POST /api/tasks/custom/:id/execute` - 执行自定义任务
-- `GET /api/tasks/executions/:id/status` - 获取任务执行状态
-
-### CMDB 接口
-- `GET /api/cmdb/hosts` - 获取主机列表
-- `POST /api/cmdb/hosts/sync` - 同步云主机
-- `GET /api/cmdb/groups` - 获取主机分组
-
-## 🔍 监控和日志
-
-### 性能监控
-系统集成了 pprof 性能分析工具：
-- CPU 分析: http://localhost:8080/debug/pprof/profile
-- 内存分析: http://localhost:8080/debug/pprof/heap
-- 协程分析: http://localhost:8080/debug/pprof/goroutine
-
-### 日志系统
-使用结构化日志记录，支持不同级别的日志输出：
-```go
-slog.Info("Server started", "port", 8080)
-slog.Error("Database connection failed", "error", err)
-```
+- **性能监控**: http://localhost:8080/debug/pprof/(需要main.go中开启)
 
 ## 🚀 部署指南
 
-### Docker 部署 (推荐)
+### 二进制 部署 (推荐)
 ```bash
-# 构建镜像
-docker build -t saurfang-v2-fiber .
-
-# 运行容器
-docker run -d \
-  --name saurfang \
-  -p 8080:8080 \
-  -e MYSQL_DSN="user:pass@tcp(mysql:3306)/saurfang" \
-  -e REDIS_ADDR="redis:6379" \
-  saurfang-v2-fiber
+# 构建二进制
+build.bat
+go build -ldflags "-w -s"
+```
+```bash
+# 生成表结构
+./saurfang  --migrate
+# 生成注册邀请码
+./saurfang admin codegen
+# 设置管理员权限
+./saurfang admin set-perms
+# 添加管理员
+./saurfang admin set-admin --name xxx
+# 启动服务
+./saurfang --serve
 ```
 
 ### 生产环境部署
-1. 使用反向代理 (Nginx/Traefik)
+1. 使用反向代理 (Nginx/caddy)
 2. 配置 HTTPS 证书
 3. 设置数据库连接池
 4. 配置日志轮转
@@ -316,6 +172,7 @@ docker run -d \
 - 优化 Nomad 集成
 - 增强权限管理
 - 改进监控面板
+- 增加了操作消息通知订阅
 
 ---
 
