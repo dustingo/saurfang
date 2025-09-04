@@ -10,6 +10,10 @@ Saurfang V2 Fiber 是一个专为游戏运维场景设计的综合性管理平�
 
 ![系统架构图](architecture.png)
 
+## 🖼️ 系统界面
+
+![系统界面预览](view.png)
+
 ## ✨ 核心功能
 
 ### 🎮 游戏服务器管理
@@ -88,8 +92,8 @@ Saurfang V2 Fiber 是一个专为游戏运维场景设计的综合性管理平�
 
 ### 1. 克隆项目
 ```bash
-git clone <repository-url>
-cd saurfang_v2_fiber
+git clone https://github.com/dustingo/saurfang.git
+cd saurfang
 ```
 
 ### 2. 环境配置
@@ -179,4 +183,65 @@ go build -ldflags "-w -s"
 
 ---
 
+## 🎨 前端技术栈
+
+### 📦 技术选型
+
+本项目前端基于现代化的 React 生态构建，采用了以下核心技术：
+
+- **前端框架**: 基于 [react-amis-admin](https://github.com/tcly861204/react-amis-admin) 进行定制开发
+- **UI 组件库**: 使用百度 [Amis](https://github.com/amisadmin/amis) 低代码前端框架
+- **构建工具**: 现代化的前端构建流程，支持代码分割和优化
+
+### 🚀 部署说明
+
+#### 获取前端资源
+构建后的前端静态资源位于 `dist` 目录，您可以：
+1. 从项目 [Releases](../../releases) 页面下载预构建版本
+2. 本地构建：参考前端项目文档进行构建
+
+#### 推荐部署方案
+
+**方案一：Caddy 反向代理（推荐）**
+
+Caddy 是一个现代化的 Web 服务器，具有自动 HTTPS、简洁配置等优势。
+
+**Caddy 配置示例**
+```
+(cors) {
+        @origin header Origin *
+        header @origin Access-Control-Allow-Origin *
+        header @origin Access-Control-Allow-Methods "OPTIONS,HEAD,GET,POST,PUT,PATCH,DELETE"
+}
+
+{
+        log {
+                level info
+                output file /usr/local/caddy/logs/caddy.log {
+                        roll_size 100MiB # 单个文件最大100MB 
+                        roll_keep 5 # 保留5个归档文件 
+                        roll_keep_for 30d # 日志保留30天 
+                }
+        }
+        auto_https disable_redirects
+}
+your-domain.com:8443 {
+        import cors
+        tls ./ssl/_.your-domain.com_bundle.crt ./ssl/_.your-domain.com.key
+        
+        # API 请求转发到后端服务
+        @api_request {
+                path /api/v1/*
+        }
+        handle @api_request {
+                reverse_proxy http://127.0.0.1:4765
+        }
+        handle /*  {
+                root /* /usr/local/caddy/data/dist
+                file_server
+                try_files {path} /
+        }
+        encode zstd gzip
+}
+```
 **Saurfang V2 Fiber** - 让游戏运维更简单、更高效！
