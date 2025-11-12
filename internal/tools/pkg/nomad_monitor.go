@@ -19,12 +19,12 @@ type NomadMonitor struct {
 
 // NewNomadMonitor 创建新的 Nomad 监控服务
 func NewNomadMonitor() (*NomadMonitor, error) {
-	nomadClient, err := config.NewNomadClient()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create nomad client: %v", err)
-	}
+	// nomadClient, err := config.NewNomadClient()
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to create nomad client: %v", err)
+	// }
 	return &NomadMonitor{
-		NomadClient: nomadClient,
+		NomadClient: config.NomadCli,
 	}, nil
 }
 

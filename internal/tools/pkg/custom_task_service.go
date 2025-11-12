@@ -22,13 +22,8 @@ type CustomTaskService struct {
 
 // NewCustomTaskService creates a new CustomTaskService instance
 func NewCustomTaskService() (*CustomTaskService, error) {
-	nomadClient, err := config.NewNomadClient()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create nomad client: %v", err)
-	}
-
 	return &CustomTaskService{
-		NomadClient: nomadClient,
+		NomadClient: config.NomadCli,
 	}, nil
 }
 

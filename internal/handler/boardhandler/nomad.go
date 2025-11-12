@@ -21,9 +21,7 @@ func getRealClusterStats() NomadClusterStats {
 	var stats NomadClusterStats
 
 	// 创建Nomad客户端
-	client, err := config.NewNomadClient()
-	if err != nil {
-		// 如果连接失败，返回默认值
+	if config.NomadCli == nil {
 		return NomadClusterStats{
 			TotalNodes:   0,
 			OnlineNodes:  0,
@@ -35,7 +33,7 @@ func getRealClusterStats() NomadClusterStats {
 	}
 
 	// 获取节点列表
-	nodes, _, err := client.Nodes().List(&nomadapi.QueryOptions{})
+	nodes, _, err := config.NomadCli.Nodes().List(&nomadapi.QueryOptions{})
 	if err == nil {
 		stats.TotalNodes = int64(len(nodes))
 		for _, node := range nodes {
@@ -48,7 +46,7 @@ func getRealClusterStats() NomadClusterStats {
 	}
 
 	// 获取任务列表
-	jobs, _, err := client.Jobs().List(&nomadapi.QueryOptions{})
+	jobs, _, err := config.NomadCli.Jobs().List(&nomadapi.QueryOptions{})
 	if err == nil {
 		stats.TotalJobs = int64(len(jobs))
 		for _, job := range jobs {

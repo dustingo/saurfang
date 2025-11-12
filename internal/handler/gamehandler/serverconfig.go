@@ -1,7 +1,6 @@
 package gamehandler
 
 import (
-	"os"
 	"saurfang/internal/config"
 	"saurfang/internal/models/serverconfig"
 	"saurfang/internal/repository/base"
@@ -11,7 +10,6 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	consulapi "github.com/hashicorp/consul/api"
-	"golang.org/x/exp/slog"
 )
 
 // ServerConfigHandler
@@ -20,13 +18,8 @@ type ServerConfigHandler struct {
 }
 
 func NewServerConfigHandler(cli *consulapi.Client, ns string) *ServerConfigHandler {
-	client, err := config.NewNomadClient()
-	if err != nil {
-		slog.Error("init nomad client err:", err)
-		os.Exit(-1)
-	}
 	return &ServerConfigHandler{
-		base.NomadJobRepository{Consul: cli, Nomad: client, Ns: ns},
+		base.NomadJobRepository{Consul: cli, Nomad: config.NomadCli, Ns: ns},
 	}
 }
 

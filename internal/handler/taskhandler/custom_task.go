@@ -31,12 +31,6 @@ type CustomTaskHandler struct {
 }
 
 func NewCustomTaskHandler() *CustomTaskHandler {
-	nomadClient, err := config.NewNomadClient()
-	if err != nil {
-		slog.Error("failed to create nomad client", "error", err)
-		os.Exit(1)
-	}
-
 	monitor, err := pkg.NewNomadMonitor()
 	if err != nil {
 		slog.Error("failed to create nomad monitor", "error", err)
@@ -45,7 +39,7 @@ func NewCustomTaskHandler() *CustomTaskHandler {
 
 	return &CustomTaskHandler{
 		BaseGormRepository: base.BaseGormRepository[task.CustomTask]{DB: config.DB},
-		NomadClient:        nomadClient,
+		NomadClient:        config.NomadCli,
 		Monitor:            monitor,
 	}
 }

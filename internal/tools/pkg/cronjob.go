@@ -154,10 +154,10 @@ func ServerOperationHandler(ctx context.Context, at *asynq.Task) error {
 		log.Printf("Failed to get cron job info: %v", err)
 	}
 	// 创建 nomad 客户端
-	nomad, err := config.NewNomadClient()
-	if err != nil {
-		return fmt.Errorf("failed to create nomad client: %v", err)
-	}
+	// nomad, err := config.NewNomadClient()
+	// if err != nil {
+	// 	return fmt.Errorf("failed to create nomad client: %v", err)
+	// }
 	//消息
 	var successCount, failCount int
 	var successJobs, failedJobs []string
@@ -204,7 +204,7 @@ func ServerOperationHandler(ctx context.Context, at *asynq.Task) error {
 						slog.Error("panic in deploy nomad ops job", "panic", r)
 					}
 				}()
-				job, err := nomad.Jobs().ParseHCL(gameConfigData.Setting, true)
+				job, err := config.NomadCli.Jobs().ParseHCL(gameConfigData.Setting, true)
 				if err != nil {
 					mu.Lock()
 					*errors = append(*errors, fmt.Sprintf("Failed to parse job hcl config file: %v", err))
@@ -213,7 +213,7 @@ func ServerOperationHandler(ctx context.Context, at *asynq.Task) error {
 					mu.Unlock()
 					return
 				}
-				_, _, err = nomad.Jobs().Register(job, nil)
+				_, _, err = config.NomadCli.Jobs().Register(job, nil)
 				if err != nil {
 					mu.Lock()
 					*errors = append(*errors, fmt.Sprintf("Failed to register job: %v", err))
@@ -235,7 +235,7 @@ func ServerOperationHandler(ctx context.Context, at *asynq.Task) error {
 						slog.Error("panic in deploy nomad ops job", "panic", r)
 					}
 				}()
-				job, err := nomad.Jobs().ParseHCL(gameConfigData.Setting, true)
+				job, err := config.NomadCli.Jobs().ParseHCL(gameConfigData.Setting, true)
 				if err != nil {
 					mu.Lock()
 					*errors = append(*errors, fmt.Sprintf("Failed to parse job hcl config file: %v", err))
@@ -244,7 +244,7 @@ func ServerOperationHandler(ctx context.Context, at *asynq.Task) error {
 					mu.Unlock()
 					return
 				}
-				_, _, err = nomad.Jobs().Deregister(*job.ID, false, nil)
+				_, _, err = config.NomadCli.Jobs().Deregister(*job.ID, false, nil)
 				if err != nil {
 					mu.Lock()
 					*errors = append(*errors, fmt.Sprintf("Failed to register job: %v", err))

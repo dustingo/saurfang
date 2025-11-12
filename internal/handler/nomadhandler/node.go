@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 	"saurfang/internal/config"
 	"saurfang/internal/models/amis"
 	"saurfang/internal/models/nomadjob"
@@ -36,23 +35,14 @@ type NomadHandler struct {
 }
 
 func NewNomadHandler(cli *consulapi.Client, ns string) *NomadHandler {
-	client, err := config.NewNomadClient()
-	if err != nil {
-		slog.Error("create nomad client error", "error", err)
-		os.Exit(-1)
-	}
 	return &NomadHandler{
-		base.NomadJobRepository{Consul: cli, Nomad: client, Ns: ns},
+		base.NomadJobRepository{Consul: cli, Nomad: config.NomadCli, Ns: ns},
 	}
 }
 
 // Handler_ListNomadNodes 列出所有node信息
 func (n *NomadHandler) Handler_ListNomadNodes(ctx fiber.Ctx) error {
-	cli, err := config.NewNomadClient()
-	if err != nil {
-		return pkg.NewAppResponse(ctx, fiber.StatusInternalServerError, 1, "create nomad client error", err.Error(), nil)
-	}
-	nodes, _, err := cli.Nodes().List(&nomadapi.QueryOptions{})
+	nodes, _, err := config.NomadCli.Nodes().List(&nomadapi.QueryOptions{})
 	if err != nil {
 		return pkg.NewAppResponse(ctx, fiber.StatusInternalServerError, 1, "list nomad nodes error", err.Error(), nil)
 	}

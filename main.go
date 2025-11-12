@@ -226,6 +226,7 @@ func initializeBasicConfig() {
 	config.InitCache()
 	config.InitNtfy()
 	config.InitConsul()
+	config.InitNomad()
 }
 
 // startServer 启动服务器
